@@ -1,0 +1,62 @@
+# The Front Desk That Never Sleeps
+
+*An AI phone agent with persistent memory, for service businesses that can't staff their phones 24/7.*
+
+**Built for:** CockroachDB × AWS Hackathon — Build with Agentic Memory | **Deadline:** Aug 18, 2026 | **$8,750 in prizes**
+
+## The Problem
+
+A homeowner's roof starts leaking. They search, find three local roofers, and call all three. Two go to voicemail. One picks up. That one gets the job — a $9,000+ job — often just because they answered the phone first, not because they were the best.
+
+This happens constantly, and it's expensive:
+
+- **62%** of small business calls go unanswered
+- **85%** of missed callers never call back — they call the next contractor
+- **$45K–$120K** lost per year by a small roofing contractor to missed calls alone
+
+The irony: these businesses are already paying $79–$228 per lead for marketing. They're winning the click and losing the job on the very next step — the phone.
+
+## Who This Is For
+
+Small service business owners — roofers, plumbers, HVAC, contractors — who already spend money on marketing but don't have the budget for a full-time receptionist or 24/7 call center. Every call outside business hours, on a job site, or during a rush is a coin flip: answer it and win the job, or lose it to whoever picks up next.
+
+## The Solution
+
+1. **Answer every call** — the agent picks up instantly, day or night, and greets the caller like a real front desk would.
+2. **Ask smart questions** — it clarifies what the caller needs (repair vs. replacement, roof type, timeline) using the business's own service and pricing data.
+3. **Remember the caller** — if this person has called before, the agent recalls the full history — no re-explaining, no starting over.
+4. **Capture everything** — files the caller sends (photos, addresses, prior quotes) get stored and linked to their record automatically.
+5. **Hand off cleanly** — the conversation is summarized and sent to the owner, who calls back informed and ready to book a tour or send a quote.
+
+## Why This Fits the Hackathon
+
+The challenge asks for an agent where memory is the point, not an afterthought. That's exactly this product — the agent is only useful because it remembers the caller, the conversation, and the business's own data.
+
+| CockroachDB | AWS |
+|---|---|
+| Distributed Vector Indexing — semantic search over service info (pricing, materials, FAQs) so the agent answers clarifying questions accurately | Amazon Bedrock — the LLM/agent brain handling the conversation |
+| MCP Server / Agent Skills — the agent reads and writes customer records and conversation state live, during the call | AWS Lambda — serverless call-handling and summarization logic |
+| | Amazon S3 — storage for uploaded files (quotes, photos, docs) |
+| | Amazon Connect — telephony layer that routes the call in |
+
+### Judging Criteria Fit
+
+- **Real-World Impact** — a concrete, relatable problem for millions of small businesses, not a toy demo.
+- **Agentic Memory Design** — caller recognition and conversation history are core to the product, not bolted on.
+- **Production Readiness** — we design for graceful failure: what happens if a call comes in while the DB is recovering.
+- **Creativity** — most "AI receptionist" demos stop at answering; ours closes the loop back to the owner with a real handoff.
+
+## Why Now
+
+Speed-to-lead is everything in home services — the first contractor to respond wins 70–80% of jobs. An agent that never misses a call and never forgets a caller turns that dynamic in our favor, and it's a product real business owners would pay for today, not just a hackathon demo.
+
+## Next Steps — Tomorrow's Meeting
+
+- Agree on the demo scenario (roofing, plumbing, or HVAC) and the exact call flow we'll show in the 3-minute video.
+- Confirm the CockroachDB + AWS pieces each of us owns (see the team plan doc's Focus Areas table).
+- Sketch the data model: what "memory" actually stores per caller, per business.
+- Set milestones for the month — working call flow, memory/DB integration, demo polish, video, submission.
+
+---
+
+*Sources: Missed-call and lead statistics: Aira (getaira.io), SkipCalls, TalkRoute, LocaliQ home-services lead cost analysis. Hackathon details: CockroachDB × AWS Hackathon on Devpost.*
