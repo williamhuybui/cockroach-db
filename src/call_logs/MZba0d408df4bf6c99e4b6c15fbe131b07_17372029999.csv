@@ -1,0 +1,3 @@
+timestamp,caller_number,speaker,text
+2026-08-01T11:59:15.960874,+17372029999,caller,Hello?
+2026-08-01T11:59:17.995589,+17372029999,assistant,"Hello there! I am an AI voice assistant powered by Twilio and the OpenAI Realtime API. You can ask me for facts, jokes, or anything you can imagine. How can I help you?"

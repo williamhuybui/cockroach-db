@@ -1,41 +1,25 @@
-# cockroach-db
+# The Front Desk That Never Sleeps
 
-Team repo for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https://cockroachdb-ai.devpost.com/) (deadline Aug 18, 2026). Goal: build an agentic app using CockroachDB as persistent memory (≥2 CockroachDB tools: MCP Server, Distributed Vector Indexing, ccloud CLI, Agent Skills Repo) deployed on AWS (≥1 AWS service, e.g. Bedrock, Lambda, S3).
+An AI phone agent with persistent memory, built for service businesses that can't staff their phones 24/7. When a homeowner's roof starts leaking, they call three roofers — whoever answers first usually wins the job. This agent answers every call, every time, and remembers every caller.
 
-## Backend (FastAPI)
+Built for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https://cockroachdb-ai.devpost.com/) (deadline Aug 18, 2026). Full pitch: [`ideation/the-front-desk-that-never-sleep.md`](ideation/the-front-desk-that-never-sleep.md).
 
-### 1. Create and activate a virtual environment
+## What it does
 
-```bash
-python3 -m venv venv
-source venv/bin/activate      # macOS/Linux
-venv\Scripts\activate         # Windows
-```
+1. **Answers every call** — instantly, day or night, greeting the caller like a real front desk would.
+2. **Asks smart questions** — clarifies what the caller needs using the business's own service and pricing data.
+3. **Remembers the caller** — repeat callers get recognized, with full history, no re-explaining.
+4. **Captures everything** — photos, addresses, and quotes sent during the call get stored and linked to the caller's record.
+5. **Hands off cleanly** — the conversation is summarized and sent to the owner to follow up.
 
-### 2. Install dependencies
+## How it works
 
-```bash
-pip install -r src/requirements.txt
-```
+`src/` is a FastAPI app that answers a call over **Twilio Voice**, streams the caller's audio to **OpenAI's Realtime API**, and streams the AI's voice back — a live, two-way conversation. Memory and business data are backed by **CockroachDB**.
 
-### 3. Run the server
+To run it locally, see [`GETTING_STARTED.md`](GETTING_STARTED.md). If something's not working, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
-From the repo root:
+## Repo layout
 
-```bash
-uvicorn src.main:app --reload
-```
-
-### 4. Open it in your browser
-
-Visit **http://127.0.0.1:8000/** — do not open `src/static/index.html` directly as a file, it needs to be served by the backend to fetch data.
-
-- http://127.0.0.1:8000/ — HTML page showing a random number
-- http://127.0.0.1:8000/health — health check
-- http://127.0.0.1:8000/docs — Swagger API docs
-
-### 5. Deactivate the virtual environment when done
-
-```bash
-deactivate
-```
+- `ideation/` — pitch docs for candidate hackathon ideas.
+- `meeting/` — meeting notes and team roles (`meeting/role-responsibility.md`).
+- `src/` — the FastAPI + Twilio + OpenAI Realtime backend.
