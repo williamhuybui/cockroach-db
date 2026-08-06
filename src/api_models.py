@@ -5,11 +5,10 @@ This file defines the data accepted by the API:
 
 1. TranscriptCreate validates each live transcript turn.
 2. TranscriptUpdate validates partial transcript changes.
-3. SemanticSearchRequest validates transcript searches.
-4. CustomerCreate validates manually created customers.
-5. CustomerUpdate validates customer profile changes.
-6. CallCreate validates the completed call summary.
-7. CallUpdate validates partial changes to completed calls.
+3. CustomerCreate validates manually created customers.
+4. CustomerUpdate validates customer profile changes.
+5. CallCreate validates the completed call summary.
+6. CallUpdate validates partial changes to completed calls.
 
 The models clean incoming values before the routers use them.
 
@@ -41,35 +40,22 @@ from pydantic import (
 )
 
 
-# Valid phone numbers use E.164 format.
-#
-# Examples:
-# +14175551001
-# +84901234567
 PHONE_PATTERN = re.compile(
     r"^\+[1-9]\d{7,14}$"
 )
 
 
-# Valid call IDs include C followed by at least three digits.
-#
-# Examples:
-# C001
-# C016
-# C1000
 CALL_ID_PATTERN = re.compile(
     r"^C\d{3,}$"
 )
 
 
-# Allowed speaker values for transcript turns.
 TranscriptSpeaker = Literal[
     "assistant",
     "caller",
 ]
 
 
-# Allowed urgency values for completed calls.
 CallUrgency = Literal[
     "Low",
     "Medium",
@@ -78,7 +64,6 @@ CallUrgency = Literal[
 ]
 
 
-# Allowed completed-call status values.
 CallStatus = Literal[
     "active",
     "completed",
@@ -108,9 +93,7 @@ def validate_phone_number(
     The number must use E.164 format, including the leading plus sign.
     """
 
-    cleaned_phone_number = (
-        phone_number.strip()
-    )
+    cleaned_phone_number = phone_number.strip()
 
     if not PHONE_PATTERN.fullmatch(
         cleaned_phone_number
@@ -135,9 +118,7 @@ def validate_call_id(
         C016 -> C016
     """
 
-    cleaned_call_id = (
-        call_id.strip().upper()
-    )
+    cleaned_call_id = call_id.strip().upper()
 
     if not CALL_ID_PATTERN.fullmatch(
         cleaned_call_id
@@ -211,7 +192,7 @@ class TranscriptCreate(APIModel):
     """
     Request body for saving one live transcript turn.
 
-    The first transcript turn may omit call_id. The transcript router
+    The first transcript turn may omit call_id. The transcript service
     then gets a unique sequence number from CockroachDB and returns a
     call ID such as C001.
 
@@ -222,19 +203,11 @@ class TranscriptCreate(APIModel):
     - saved_to_db_at
     """
 
-    # Omitted only for the first transcript turn.
     call_id: str | None = None
-
-    # Time when this transcript turn occurred.
     timestamp: datetime
-
-    # Phone number associated with the live call.
     caller_number: str
-
-    # Identifies who spoke this turn.
     speaker: TranscriptSpeaker
 
-    # Exact text from this conversation turn.
     text: str = Field(
         min_length=1,
     )
@@ -288,8 +261,6 @@ class TranscriptUpdate(APIModel):
 
     All fields are optional because PATCH changes only the fields sent
     in the request.
-
-    The router regenerates the embedding when text changes.
     """
 
     call_id: str | None = None
@@ -350,8 +321,6 @@ class TranscriptUpdate(APIModel):
 class TranscriptResponse(APIModel):
     """
     One transcript turn returned by the API.
-
-    The embedding is not included in normal responses.
     """
 
     id: UUID
@@ -361,40 +330,6 @@ class TranscriptResponse(APIModel):
     speaker: TranscriptSpeaker
     text: str
     saved_to_db_at: datetime
-
-
-class SemanticSearchRequest(APIModel):
-    """
-    Request body for transcript semantic search.
-
-    The query is converted into an OpenAI embedding and compared with
-    stored transcript embeddings in CockroachDB.
-    """
-
-    query: str = Field(
-        min_length=1,
-    )
-
-    # Return between 1 and 20 matching transcript turns.
-    limit: int = Field(
-        default=5,
-        ge=1,
-        le=20,
-    )
-
-    @field_validator("query")
-    @classmethod
-    def check_query(
-        cls,
-        query,
-    ):
-        """
-        Clean and reject a blank search query.
-        """
-
-        return validate_required_text(
-            query
-        )
 
 
 # -------------------------------------------------------------------
@@ -508,13 +443,9 @@ class CallCreate(APIModel):
     - structured details are extracted
     """
 
-    # Reuse the ID assigned by transcripts.py.
     call_id: str
-
-    # Must match the caller number stored in the transcript turns.
     caller_number: str
 
-    # Time when the phone call began.
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(
             timezone.utc
@@ -530,20 +461,11 @@ class CallCreate(APIModel):
     availability: str | None = None
 
     urgency: CallUrgency | None = None
-
-    # Links a follow-up call to an earlier completed call.
     previous_call_id: str | None = None
-
-    # Records the person for whom this caller is calling.
     calling_on_behalf_of: str | None = None
-
-    # AI-generated summary created after the call ends.
     summary: str | None = None
-
-    # Time when the phone call ended.
     ended_at: datetime | None = None
 
-    # The normal value for a summarized call is completed.
     status: CallStatus = "completed"
 
     @field_validator("call_id")

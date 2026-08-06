@@ -4,7 +4,7 @@
 
 -- Generate a unique number whenever a new live call begins.
 --
--- transcripts.py converts the number into a readable call ID:
+-- transcript_service.py converts the number into a readable call ID:
 -- 1  -> C001
 -- 16 -> C016
 --
@@ -194,9 +194,6 @@ CREATE TABLE IF NOT EXISTS transcripts (
     speaker STRING NOT NULL,
     text STRING NOT NULL,
 
-    -- OpenAI text-embedding-3-small vector.
-    embedding VECTOR(1536) NULL,
-
     -- When this transcript turn was saved to CockroachDB.
     saved_to_db_at TIMESTAMPTZ
         NOT NULL
@@ -251,12 +248,4 @@ CREATE INDEX IF NOT EXISTS
 ON transcripts (
     call_id,
     "timestamp"
-);
-
-
--- Support semantic transcript searches using cosine distance.
-CREATE VECTOR INDEX IF NOT EXISTS
-    transcripts_embedding_idx
-ON transcripts (
-    embedding vector_cosine_ops
 );

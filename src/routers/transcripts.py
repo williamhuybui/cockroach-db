@@ -6,8 +6,8 @@ This router supports the live transcript workflow:
 1. The first transcript turn may arrive without a call_id.
 2. transcript_service.py generates a unique call_id.
 3. Later transcript turns reuse the same call_id.
-4. transcript_service.py creates the embedding and saves the turn.
-5. Stored transcripts can be read, updated, deleted, or searched by meaning.
+4. transcript_service.py saves each completed transcript turn.
+5. Stored transcripts can be read, updated, or deleted.
 
 Both POST /transcripts and the live Twilio WebSocket use the same
 transcript service.
@@ -25,20 +25,14 @@ from fastapi import (
 from psycopg.errors import UniqueViolation
 
 from api_models import (
-    SemanticSearchRequest,
     TranscriptCreate,
     TranscriptUpdate,
     validate_call_id,
     validate_phone_number,
 )
-from config import OPENAI_EMBEDDING_DIMENSIONS
 from database import (
     get_database_connection,
     get_database_transaction,
-)
-from embedding_service import (
-    create_embedding,
-    to_vector_literal,
 )
 from services.transcript_service import create_transcript_turn
 
@@ -85,62 +79,6 @@ async def create_transcript(
         )
 
     return dict(row)
-
-
-@router.post("/semantic-search")
-async def semantic_search(
-    request: SemanticSearchRequest,
-):
-    """
-    Find transcript turns with meaning similar to a search query.
-
-    A smaller distance means a closer semantic match.
-    """
-
-    query_embedding = await create_embedding(
-        request.query
-    )
-
-    vector_literal = to_vector_literal(
-        query_embedding
-    )
-
-    sql = f"""
-        SELECT
-            id,
-            call_id,
-            "timestamp",
-            caller_number,
-            speaker,
-            text,
-            saved_to_db_at,
-            embedding <=> %s::VECTOR(
-                {OPENAI_EMBEDDING_DIMENSIONS}
-            ) AS distance
-        FROM transcripts
-        WHERE embedding IS NOT NULL
-        ORDER BY embedding <=> %s::VECTOR(
-            {OPENAI_EMBEDDING_DIMENSIONS}
-        )
-        LIMIT %s
-    """
-
-    async with get_database_connection() as connection:
-        cursor = await connection.execute(
-            sql,
-            (
-                vector_literal,
-                vector_literal,
-                request.limit,
-            ),
-        )
-
-        rows = await cursor.fetchall()
-
-    return [
-        dict(row)
-        for row in rows
-    ]
 
 
 @router.get("")
@@ -282,8 +220,6 @@ async def update_transcript(
 ):
     """
     Update selected transcript fields.
-
-    When the transcript text changes, its embedding is regenerated.
     """
 
     changes = update.model_dump(
@@ -314,15 +250,6 @@ async def update_transcript(
                 detail=f"{field_name} cannot be null.",
             )
 
-    if "text" in changes:
-        embedding = await create_embedding(
-            changes["text"]
-        )
-
-        changes["embedding"] = to_vector_literal(
-            embedding
-        )
-
     assignments = []
     values = []
 
@@ -350,19 +277,6 @@ async def update_transcript(
 
         values.append(
             changes[field_name]
-        )
-
-    if "embedding" in changes:
-        assignments.append(
-            f"""
-            embedding = %s::VECTOR(
-                {OPENAI_EMBEDDING_DIMENSIONS}
-            )
-            """
-        )
-
-        values.append(
-            changes["embedding"]
         )
 
     values.append(

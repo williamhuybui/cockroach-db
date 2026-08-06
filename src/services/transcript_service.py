@@ -8,7 +8,7 @@ these functions so transcript records are created the same way.
 from datetime import datetime
 
 from database import get_database_transaction
-from embedding_service import create_embedding, to_vector_literal
+# from embedding_service import create_embedding, to_vector_literal
 
 
 async def generate_call_id() -> str:
@@ -52,8 +52,8 @@ async def create_transcript_turn(
     if call_id is None:
         call_id = await generate_call_id()
 
-    embedding = await create_embedding(cleaned_text)
-    vector_literal = to_vector_literal(embedding)
+    # embedding = await create_embedding(cleaned_text)
+    # vector_literal = to_vector_literal(embedding)
 
     async with get_database_transaction() as connection:
         result = await connection.execute(
@@ -63,16 +63,14 @@ async def create_transcript_turn(
                 "timestamp",
                 caller_number,
                 speaker,
-                text,
-                embedding
+                text
             )
             VALUES (
                 %s,
                 %s,
                 %s,
                 %s,
-                %s,
-                %s::VECTOR
+                %s
             )
             RETURNING
                 id,
@@ -88,8 +86,7 @@ async def create_transcript_turn(
                 timestamp,
                 caller_number,
                 speaker,
-                cleaned_text,
-                vector_literal,
+                cleaned_text
             ),
         )
 

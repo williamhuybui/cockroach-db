@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from config import TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH, CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE
 from greeting import greeting_twilio, greeting_openai
 from database import configure_database
-from embedding_service import configure_embedding_client, close_embedding_client
+# from embedding_service import configure_embedding_client, close_embedding_client
 
 from contextlib import asynccontextmanager
 
@@ -46,9 +46,6 @@ if not DATABASE_URL:
 # The pool will be opened when FastAPI starts.
 database_pool = configure_database(DATABASE_URL)
 
-# Create the shared OpenAI client used for transcript embeddings.
-configure_embedding_client(OPENAI_API_KEY)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -65,9 +62,6 @@ async def lifespan(app: FastAPI):
     finally:
         # Release database connections during shutdown or restart.
         await database_pool.close()
-        # Close the OpenAI embedding client.
-        await close_embedding_client()
-
 
 # Create the FastAPI application and attach the startup/shutdown process.
 app = FastAPI(lifespan=lifespan)
@@ -220,8 +214,7 @@ async def handle_media_stream(websocket: WebSocket):
                     return
 
                 logger.info(
-                    "Transcript saved to CockroachDB: "
-                    "call_id=%s speaker=%s transcript_id=%s",
+                    "DATABASE SAVE SUCCESS | call_id=%s | speaker=%s | transcript_id=%s",
                     saved_transcript["call_id"],
                     saved_transcript["speaker"],
                     saved_transcript["id"],
