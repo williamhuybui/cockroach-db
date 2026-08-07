@@ -102,12 +102,12 @@ async def handle_media_stream(websocket: WebSocket):
         csv_writer = None
         caller_number = None
 
-        def log_conversation(speaker, text):
+        def log_conversation(speaker, text, input_tokens="", output_tokens=""):
             if not text:
                 return
             logger.info(f"{caller_number}: {datetime.now().isoformat()}: {speaker}: {text}")
             if csv_writer:
-                csv_writer.writerow([datetime.now().isoformat(), caller_number, speaker, text])
+                csv_writer.writerow([datetime.now().isoformat(), caller_number, speaker, text, input_tokens, output_tokens])
                 csv_file.flush()
 
         async def receive_from_twilio():
@@ -136,7 +136,7 @@ async def handle_media_stream(websocket: WebSocket):
                         csv_path = os.path.join(CALL_LOGS_DIR, f"{stream_sid}_{safe_caller}.csv")
                         csv_file = open(csv_path, mode='w', newline='', encoding='utf-8')
                         csv_writer = csv.writer(csv_file)
-                        csv_writer.writerow(["timestamp", "caller_number", "speaker", "text"])
+                        csv_writer.writerow(["timestamp", "caller_number", "speaker", "text", "input_tokens", "output_tokens"])
                     elif data['event'] == 'mark':
                         if mark_queue:
                             mark_queue.pop(0)
@@ -182,6 +182,13 @@ async def handle_media_stream(websocket: WebSocket):
 
                     if event.get('type') == 'response.output_audio_transcript.done':
                         log_conversation("assistant", event.get('transcript', '').strip())
+
+                    if event.get('type') == 'response.done':   
+                        usage = event.get('response', {}).get('usage', {})
+                        input_tokens = usage.get('input_tokens', '')
+                        output_tokens = usage.get('output_tokens', '')
+                        if usage:
+                            log_conversation("usage", f"response tokens", input_tokens, output_tokens)
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
                     if event.get('type') == 'input_audio_buffer.speech_started':
