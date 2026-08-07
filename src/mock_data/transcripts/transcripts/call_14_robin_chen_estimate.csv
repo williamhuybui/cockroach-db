@@ -1,0 +1,16 @@
+timestamp,caller_number,speaker,text
+2026-08-14T18:00:00,+14175551009,assistant,"Front desk for the roofing company, how can I help?"
+2026-08-14T18:00:18,+14175551009,caller,"Yeah hi, um, so I was, like, wondering, um, about maybe getting like a, uh, cost thing for a new roof?"
+2026-08-14T18:00:48,+14175551009,assistant,"Sure, happy to help with a cost estimate for a new roof. Can I get your name?"
+2026-08-14T18:01:00,+14175551009,caller,Robin Chen.
+2026-08-14T18:01:12,+14175551009,caller,"Oh also, random question, is it supposed to be hot this whole week?"
+2026-08-14T18:01:36,+14175551009,assistant,"I'm just the front desk here for roofing, so I can't help with the forecast, but let's get your estimate going. Email address?"
+2026-08-14T18:02:00,+14175551009,caller,"Uh, it's, um, robin dot chen, at, um, gmail, dot com."
+2026-08-14T18:02:24,+14175551009,assistant,Got it. Property address?
+2026-08-14T18:02:36,+14175551009,caller,88 Sunset Terrace.
+2026-08-14T18:02:54,+14175551009,assistant,"Any specific issues with the current roof, or just want a ballpark cost?"
+2026-08-14T18:03:12,+14175551009,caller,"Just a ballpark, no urgent issues really."
+2026-08-14T18:03:30,+14175551009,assistant,Got it. What's your availability like for someone to come out and take a look?
+2026-08-14T18:03:54,+14175551009,caller,"Um, weekday evenings, or, actually, wait, maybe weekend mornings instead, either one honestly."
+2026-08-14T18:04:12,+14175551009,assistant,"No problem, I'll note both weekday evenings and weekend mornings as options."
+2026-08-14T18:04:24,+14175551009,caller,"Okay cool, thanks."

@@ -1,0 +1,20 @@
+timestamp,caller_number,speaker,text
+2026-08-17T01:00:00,+14175551011,assistant,"Front desk for the roofing company, how can I help?"
+2026-08-17T01:00:18,+14175551011,caller,"There's a gap around my chimney flashing, letting some moisture in."
+2026-08-17T01:00:36,+14175551011,assistant,"Got it, sorry about that. Can I get your full name?"
+2026-08-17T01:00:48,+14175551011,caller,Jason Pham.
+2026-08-17T01:01:00,+14175551011,assistant,"Thanks, Jason. Could you share your email address?"
+2026-08-17T01:01:18,+14175551011,caller,"Yeah so it's like, uh, J, uh, P-H-A-M, um..."
+2026-08-17T01:01:30,+14175551011,assistant,Take your time.
+2026-08-17T01:01:42,+14175551011,caller,"88 at, um, gmail.com."
+2026-08-17T01:02:00,+14175551011,assistant,"Got it, jpham88@gmail.com. And the property address?"
+2026-08-17T01:02:12,+14175551011,caller,301 Hillcrest Avenue.
+2026-08-17T01:02:30,+14175551011,assistant,Thanks. Can you describe how bad the gap is — is any water actually coming through yet?
+2026-08-17T01:02:54,+14175551011,caller,"A little draft and some minor moisture, not a full leak yet."
+2026-08-17T01:03:12,+14175551011,assistant,Good that it's caught early. When's a good time for someone to come out?
+2026-08-17T01:03:24,+14175551011,caller,Weekends only for me.
+2026-08-17T01:03:36,+14175551011,assistant,"Got it, weekends only. We'll follow up to confirm a time."
+2026-08-17T01:03:54,+14175551011,caller,Is there any way I could just talk to a manager directly instead of waiting on a callback?
+2026-08-17T01:04:24,+14175551011,assistant,"I totally understand wanting to move quickly — I'll flag this for a manager to follow up directly, and everything you've shared is already on file so nothing needs repeating. We'll be in touch soon."
+2026-08-17T01:04:48,+14175551011,caller,"Okay, appreciate it. Thanks."
+2026-08-17T01:04:54,+14175551011,assistant,"You're welcome, Jason, take care."

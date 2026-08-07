@@ -1,0 +1,17 @@
+timestamp,caller_number,speaker,text
+2026-08-10T16:45:00,+14175551005,assistant,"Front desk for the roofing company, how can I help?"
+2026-08-10T16:45:18,+14175551005,caller,Yeah my gutter's hanging half off after the storm last night.
+2026-08-10T16:45:36,+14175551005,assistant,"Got it, sorry about that. Can I get your name?"
+2026-08-10T16:45:48,+14175551005,caller,Marcus Webb.
+2026-08-10T16:46:00,+14175551005,assistant,Thanks Marcus. Email address?
+2026-08-10T16:46:18,+14175551005,caller,mwebb22 at gmail dot com.
+2026-08-10T16:46:36,+14175551005,assistant,And the property address with unit number?
+2026-08-10T16:47:00,+14175551005,caller,"118 Birchwood Lane, Apartment 4C. I think my neighbor might've called about a ceiling leak too, same building."
+2026-08-10T16:47:30,+14175551005,assistant,"Thanks for the heads up, we'll make sure both are on file. When's a good time for someone to take a look at your gutter?"
+2026-08-10T16:47:48,+14175551005,caller,Evenings after 6.
+2026-08-10T16:48:06,+14175551005,assistant,"Got it, evenings after 6. Anything else going on with the roof, or just the gutter?"
+2026-08-10T16:48:36,+14175551005,caller,"Just the gutter. Actually, can I talk to an actual manager about getting this prioritized? I've had gutter issues before with a different company and got ignored."
+2026-08-10T16:49:12,+14175551005,assistant,"Totally understand that concern, Marcus. I'll make sure this gets flagged for a manager to review, and everything you've told me goes straight to the team so nothing gets lost. Let's make sure we've got everything locked in first — evenings after 6 works for you?"
+2026-08-10T16:49:30,+14175551005,caller,Yeah that's fine.
+2026-08-10T16:49:42,+14175551005,assistant,"Great, you're all set, and I'll note the request for manager follow-up. We'll be in touch."
+2026-08-10T16:49:54,+14175551005,caller,"Okay, thanks."

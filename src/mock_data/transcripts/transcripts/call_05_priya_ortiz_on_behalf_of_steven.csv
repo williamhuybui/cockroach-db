@@ -1,0 +1,12 @@
+timestamp,caller_number,speaker,text
+2026-08-12T19:00:00,+14175551010,assistant,"Front desk for the roofing company, how can I help?"
+2026-08-12T19:00:18,+14175551010,caller,"Hi, I'm calling on behalf of my husband, Steven Ortiz — he called earlier this week about getting the roof replaced."
+2026-08-12T19:00:48,+14175551010,assistant,"Of course — yes, I have his call on file about the roof replacement at 205 Fieldstone Court. What can I help with?"
+2026-08-12T19:01:18,+14175551010,caller,"I'm actually home most weekday mornings too, so if it's easier to schedule around my availability instead of just his, let me know."
+2026-08-12T19:01:42,+14175551010,assistant,"That's helpful, thank you. Can I get your name so I can add you as an additional contact for this property?"
+2026-08-12T19:02:06,+14175551010,caller,"Priya Ortiz. Same address, same household, I just wanted to confirm someone's still coming out this weekend."
+2026-08-12T19:02:36,+14175551010,assistant,"Yes, we've got weekend availability noted from Steven's call, and I'll add your name and weekday-morning availability as a backup option. Is your number a good second contact too?"
+2026-08-12T19:02:54,+14175551010,caller,"Yes, this number works."
+2026-08-12T19:03:06,+14175551010,assistant,"Perfect, you're both on file now for 205 Fieldstone Court. We'll follow up to confirm a time."
+2026-08-12T19:03:18,+14175551010,caller,"Great, thank you."
+2026-08-12T19:03:24,+14175551010,assistant,"You're welcome, Priya, take care."

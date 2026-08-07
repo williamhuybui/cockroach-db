@@ -1,0 +1,7 @@
+timestamp,caller_number,speaker,text
+2026-08-10T23:00:00,+14175551007,assistant,"Front desk for the roofing company, how can I help?"
+2026-08-10T23:00:18,+14175551007,caller,"Hi, Carlos Mendez again, following up on the inspection I asked about earlier this week."
+2026-08-10T23:00:42,+14175551007,assistant,"Hi Carlos, yes I've got that on file for 56 Ridgeline Way. Let's get a date locked in — any preference?"
+2026-08-10T23:01:06,+14175551007,caller,"Anytime next week works, I'm flexible."
+2026-08-10T23:01:24,+14175551007,assistant,"Great, we'll aim for sometime next week and confirm the exact day shortly."
+2026-08-10T23:01:36,+14175551007,caller,"Perfect, thanks."

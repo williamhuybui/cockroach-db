@@ -1,0 +1,11 @@
+timestamp,caller_number,speaker,text
+2026-08-27T17:00:00,+14175551008,assistant,"Front desk for the roofing company, how can I help?"
+2026-08-27T17:00:18,+14175551008,caller,"Hi, this is Whitney Foster again — different issue this time, my skylight's leaking."
+2026-08-27T17:00:48,+14175551008,assistant,"Hi Whitney, good to hear from you, sorry about the skylight. Different from the gutter cleaning last time — let's get details. Is it actively leaking right now?"
+2026-08-27T17:01:24,+14175551008,caller,"Just after it rains, a little water pools around the frame. Also while I have you, my garbage disposal's been broken for weeks, any chance you all handle that too?"
+2026-08-27T17:02:00,+14175551008,assistant,"We're roofing and restoration only, so the disposal would need a plumber, sorry about that — but let's get the skylight taken care of. Same address, 14 Oakhaven Circle?"
+2026-08-27T17:02:12,+14175551008,caller,"Yep, same place."
+2026-08-27T17:02:24,+14175551008,assistant,Got it. What time works for someone to take a look?
+2026-08-27T17:02:42,+14175551008,caller,Weekday mornings still work best for me.
+2026-08-27T17:02:54,+14175551008,assistant,"Perfect, noted. We'll follow up soon."
+2026-08-27T17:03:06,+14175551008,caller,Thanks.

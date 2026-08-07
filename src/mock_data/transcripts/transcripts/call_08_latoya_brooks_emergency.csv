@@ -1,0 +1,13 @@
+timestamp,caller_number,speaker,text
+2026-08-14T06:15:00,+14175551006,assistant,"Front desk for the roofing company, how can I help?"
+2026-08-14T06:15:09,+14175551006,caller,"Water is pouring through my ceiling right now, I need someone tonight!"
+2026-08-14T06:15:18,+14175551006,assistant,"Understood, this is urgent, I'm getting your info right now. Can I get your name?"
+2026-08-14T06:15:24,+14175551006,caller,Latoya Brooks.
+2026-08-14T06:15:30,+14175551006,assistant,And the address?
+2026-08-14T06:15:36,+14175551006,caller,930 Crestline Drive.
+2026-08-14T06:15:45,+14175551006,assistant,Got it. Is the water coming from one spot or spreading across the ceiling?
+2026-08-14T06:15:57,+14175551006,caller,"One spot in the living room but it's getting worse fast, I've got buckets out."
+2026-08-14T06:16:12,+14175551006,assistant,"Okay, I'm flagging this as an emergency right now and getting someone to call you back within the hour. Best number to reach you is the one you're calling from?"
+2026-08-14T06:16:21,+14175551006,caller,"Yes, this number."
+2026-08-14T06:16:30,+14175551006,assistant,"Got it, someone will call you very shortly. Hang in there."
+2026-08-14T06:16:36,+14175551006,caller,Please hurry.
