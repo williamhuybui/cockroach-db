@@ -14,12 +14,22 @@ Built for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https
 
 ## How it works
 
-`src/` is a FastAPI app that answers a call over **Twilio Voice**, streams the caller's audio to **OpenAI's Realtime API**, and streams the AI's voice back — a live, two-way conversation. Memory and business data are backed by **CockroachDB**.
+`src/` is a FastAPI app that answers a call over **Twilio Voice**, streams the caller's audio to **OpenAI's Realtime API**, and streams the AI's voice back — a live, two-way conversation. Each call is transcribed to a CSV in `call_logs/`.
+
+A companion dashboard (`/dashboard`) lists calls and clients, and per call lets you read/search the transcript, add notes, review auto-detected action items, and manage caller-uploaded files (photos, quotes, docs).
+
+**Current status:** this is a working prototype — caller/client records, notes, and transcripts are stored locally (JSON/CSV files), not in CockroachDB yet. The hackathon submission still needs the memory layer migrated to CockroachDB and the app deployed on AWS, per the [pitch doc](ideation/the-front-desk-that-never-sleep.md).
 
 To run it locally, see [`GETTING_STARTED.md`](GETTING_STARTED.md). If something's not working, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
 ## Repo layout
 
 - `ideation/` — pitch docs for candidate hackathon ideas.
-- `meeting/` — meeting notes and team roles (`meeting/role-responsibility.md`).
+- `meeting/` — meeting notes (`group_meeting/`), client interview notes (`client_meeting/`), and team roles (`meeting/role-responsibility.md`).
 - `src/` — the FastAPI + Twilio + OpenAI Realtime backend.
+  - `main.py` — Twilio webhook + WebSocket media-stream handler.
+  - `dashboard.py` — REST API and `/dashboard` page for calls, clients, notes, action items, and file uploads.
+  - `config.py`, `greeting.py` — server settings and greeting text.
+  - `static/` — dashboard frontend (HTML/CSS/JS).
+- `call_logs/` — per-call CSV transcripts, generated at runtime.
+- `uploads/`, `clients.json`, `caller_names.json`, `notes.json` — dashboard's local data store, gitignored and generated at runtime.
