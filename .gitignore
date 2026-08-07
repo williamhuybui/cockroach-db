@@ -6,9 +6,24 @@ venv/
 
 # Environment variables
 .env
+.env.*
 
 # IDE
 .vscode/
 .idea/
 .DS_Store
 .claude
+
+# Local application logs and runtime files
+call_logs/
+*.log
+tmp/
+
+# Certificates and private keys
+*.crt
+*.key
+*.pem
+certs/
+
+cockroach.zip
+ccloud.zip
