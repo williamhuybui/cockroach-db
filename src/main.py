@@ -13,6 +13,7 @@ from twilio.twiml.voice_response import VoiceResponse, Connect
 from dotenv import load_dotenv
 from config import TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH, CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE
 from greeting import greeting_twilio, greeting_openai
+from dashboard import register_dashboard
 load_dotenv()
 
 logging.basicConfig(
@@ -28,6 +29,8 @@ if not OPENAI_API_KEY:
 os.makedirs(CALL_LOGS_DIR, exist_ok=True)
 
 app = FastAPI()
+register_dashboard(app)
+
 @app.get("/", response_class=JSONResponse)
 async def index_page():
     return {"message": "Twilio Media Stream Server is running!"}

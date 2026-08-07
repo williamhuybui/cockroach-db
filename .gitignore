@@ -12,3 +12,9 @@ venv/
 .idea/
 .DS_Store
 .claude
+
+# Uploaded caller files
+uploads/
+caller_names.json
+notes.json
+clients.json
