@@ -13,3 +13,9 @@ venv/
 .DS_Store
 .claude
 call_logs/
+
+# Uploaded caller files
+uploads/
+caller_names.json
+notes.json
+clients.json
