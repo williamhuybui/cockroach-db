@@ -1,0 +1,29 @@
+timestamp,caller_number,speaker,text
+2026-08-07T18:49:56.000472,+14175906041,caller,"Yeah, what's the weather like in Springfield today?"
+2026-08-07T18:49:56.140725,+14175906041,assistant,I'm only able to help with roofing and restoration questions for AM Construction Services. Is there something about your roof or an appointment I can help with today?
+2026-08-07T18:50:20.191764,+14175906041,caller,"I mean, I feel like it's going to rain soon, I have a very heavy storm, so I was kind of concerned for my roof, which it has a crack on it, so maybe could you tell me what the weather is like today, so I can know beforehand?"
+2026-08-07T18:50:20.748489,+14175906041,assistant,"I can’t give weather updates, but it sounds like your roof might need attention before the storm. Let’s focus on that crack. Could you tell me your full name and the property address, so we can help you get it inspected quickly?"
+2026-08-07T18:50:46.258129,+14175906041,caller,"So, my name is Scott John, but the one who is living at my home right now is Regan, who will be seeing you if you come, and my address is 829 Birchham Street, Springfield, MO."
+2026-08-07T18:50:46.847201,+14175906041,assistant,"Thanks for that, Scott. We'll make sure Reagan is noted as the contact at the property. Just to confirm, is there any unit or apartment number for 829 Birchham Street, or is it a single-family home?"
+2026-08-07T18:50:59.405874,+14175906041,caller,"Oh yeah, it's 110."
+2026-08-07T18:51:00.407518,+14175906041,assistant,"Got it, unit 110. Thanks for confirming. Now, could you let me know the best phone number to reach you or Reagan at, just to make sure we have it correct?"
+2026-08-07T18:51:22.628596,+14175906041,caller,"Yeah, so my phone number is this number, and Reagan's number should be 417-590-6000."
+2026-08-07T18:51:24.558114,+14175906041,assistant,"Perfect, so we have your number from the call, and Reagan’s at 417-590-6000. Next, can you share a brief description of the problem you’re seeing with the roof, and how urgent it feels?"
+2026-08-07T18:51:52.753173,+14175906041,caller,"Yeah, so it kind of has a lot of cracks. I feel like it's gonna break anytime soon But I also have a concern is about like a bathroom in the kitchen It has some leak water leakage there as well. So could you come and see and fix it by any chance?"
+2026-08-07T18:51:53.328170,+14175906041,assistant,"We definitely can take a look at that roof crack, especially if it’s urgent. Now, about the bathroom and kitchen leaks—do you know if those leaks might be related to the roof or any storm damage coming from above?"
+2026-08-07T18:52:02.879527,+14175906041,caller,"All right, now that one's done."
+2026-08-07T18:52:04.340646,+14175906041,assistant,"Understood. We'll focus on the roof and any storm-related leaks. Now, what’s the best day and time for someone from our team to come out and take a look at that crack in the roof?"
+2026-08-07T18:52:24.052346,+14175906041,caller,So what about like the kitchen and the bathroom thing? Could you fix that for me? You didn't ever say anything about it.
+2026-08-07T18:52:24.423761,+14175906041,assistant,"We specialize in roofing and storm-related issues. If the kitchen or bathroom leak is connected to roof or storm damage,"
+2026-08-07T18:52:27.597177,+14175906041,caller,Hello?
+2026-08-07T18:52:28.724138,+14175906041,assistant,"Hi! Just to clarify, we focus on roofing and storm-related issues. If the kitchen or bathroom leaks are connected to roof or storm damage, we can definitely check that out. Now, when would be a good time for us to come by and inspect the roof?"
+2026-08-07T18:52:52.660772,+14175906041,caller,"Maybe like tomorrow 8 to 9 in the morning, and yeah, yeah, maybe like 7 or 8 in the night time, if it's possible."
+2026-08-07T18:52:53.728127,+14175906041,assistant,We can definitely aim for tomorrow morning between 8 and 9. We’ll confirm the exact time as soon as the team schedules it. Could you also share your email address so we can send over any details or updates?
+2026-08-07T18:53:12.051661,+14175906041,caller,It should be at tmtla.gmail.com.
+2026-08-07T18:53:14.102897,+14175906041,assistant,"Thanks for that. So we have your email as tnt at gmail.com. We'll send confirmation soon. We’ve got the address, the phone numbers, and the details about the roof crack. We’ll have someone follow up. You’re all set for now. Thanks for calling, and take care."
+2026-08-07T18:53:19.517262,+14175906041,caller,"No, TMP."
+2026-08-07T18:53:21.539876,+14175906041,assistant,"Thanks for clarifying. So the email is t-m-p at gmail.com. Great—we’ve got your inspection requested for tomorrow morning between 8 and 9. We’ll follow up to confirm. If anything changes, feel free to let us know. Take care!"
+2026-08-07T18:53:44.644926,+14175906041,caller,About like can I maybe talk to the manager have to enter like measure information by any chance so I can call him directly
+2026-08-07T18:53:45.377398,+14175906041,assistant,"I can’t transfer you directly to a manager right now, but I’ll make sure to pass along your message and have someone follow up with you. They’ll get back to you as soon as possible."
+2026-08-07T18:53:59.286046,+14175906041,assistant,"You're welcome, and take care."
+2026-08-07T18:53:59.756868,+14175906041,caller,"Yeah, sure. Thank you."
