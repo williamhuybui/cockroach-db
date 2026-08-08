@@ -14,6 +14,10 @@ SHOW_TIMING_MATH = False
 CALL_LOGS_DIR = "call_logs"
 SILENCE_DURATION_MS = 1000
 
+VAD_TYPE = "server_vad"     
+VAD_THRESHOLD = 0.5           
+VAD_EAGERNESS = "auto"  
+
 # Logging
 # True: log everything (connections, raw events, timing, etc.).
 # False: log only "phone_number: time: conversation" lines.
@@ -38,6 +42,10 @@ OPENAI_REQUEST_TIMEOUT_SECONDS = 30
 DATABASE_POOL_MIN_SIZE = 1
 DATABASE_POOL_MAX_SIZE = 3
 
+MAX_CONVERSATION_TOKENS = 500
+WRAP_UP_AT_PERCENT = 0.85
+MAX_CALL_DURATION_SECONDS = 120
+
 # Prompt
 COMPANY_NAME = "AM Construction Services"
  
@@ -51,6 +59,22 @@ SYSTEM_MESSAGE = (
     f"\"I'm only able to help with roofing and restoration questions for {COMPANY_NAME} "
     "— is there something about your roof or an appointment I can help with?\" Never "
     "answer questions outside this scope, even if the caller insists or rephrases.\n\n"
+
+    "INFORMATION TO COLLECT: over the course of the call, naturally gather these "
+    "details — weave them into the conversation, don't read them as a checklist:\n"
+    "- name: the caller's full name (and the property owner's name too, if they're "
+    "calling on someone else's behalf).\n"
+    "- address: the property address needing service — always get this for any "
+    "inspection, repair, or estimate request.\n"
+    "- email: ask when it's natural, e.g. to send a confirmation or estimate — don't "
+    "push if the caller hesitates or seems in a hurry.\n"
+    "- problem: a short label for the issue (e.g. \"roof leak\", \"missing shingles\", "
+    "\"storm damage\").\n"
+    "- problem_detail: a bit more specific — where on the property, how long it's "
+    "been going on, what caused it if the caller knows.\n"
+    "- availability: what days or times work for a technician to visit or call back.\n"
+    "Their phone number is already captured automatically from the call — you don't "
+    "need to ask for it unless they're calling on someone else's behalf.\n\n"
  
     "COMMON SITUATIONS — handle each like this:\n"
     "- New inspection/estimate request: get the property address and a short description "
@@ -72,7 +96,10 @@ SYSTEM_MESSAGE = (
     "this isn't a match and end the call — don't try to be helpful with unrelated sales "
     "pitches.\n\n"
  
-    "ENDING THE CALL: you have an end_call tool — use it, don't just go quiet or keep "
+    "ENDING THE CALL: right before you say goodbye and call end_call, also call "
+    "save_call_summary with whatever details you've gathered — it's fine if some "
+    "fields are still unknown, just leave those out.\n"
+    "you have an end_call tool — use it, don't just go quiet or keep "
     "talking forever. Call end_call when ANY of these is true:\n"
     "- caller_said_goodbye: they've clearly said bye, thanks, or that's all for now.\n"
     "- task_completed: what they called about is fully handled and there's nothing left "
@@ -91,4 +118,6 @@ SYSTEM_MESSAGE = (
     "Keep replies short, warm, and conversational — like a friendly front-desk person, "
     "not a script."
 )
- 
+
+# SMS follow-up
+SMS_AFTER_CALL_ENABLED = True

@@ -11,9 +11,15 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from dotenv import load_dotenv
-from config import TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH, CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE
+from config import (
+    TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH,
+    CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE,
+    VAD_TYPE, VAD_THRESHOLD, VAD_EAGERNESS,
+    MAX_CONVERSATION_TOKENS, WRAP_UP_AT_PERCENT, MAX_CALL_DURATION_SECONDS,
+)
 from greeting import greeting_twilio, greeting_openai
-from database import configure_database
+from database import get_database_transaction, configure_database
+from sms_service import configure_sms_client 
 # from embedding_service import configure_embedding_client, close_embedding_client
 
 from contextlib import asynccontextmanager
@@ -23,6 +29,11 @@ from routers.transcripts import router as transcripts_router
 from routers.customers import router as customers_router
 from routers.calls import router as calls_router
 from services.transcript_service import create_transcript_turn, generate_call_id
+from routers.customers import router as customers_router, find_customer_by_phone
+from api_models import CallCreate
+from database import configure_database, get_database_transaction
+from routers.calls import insert_call
+from pydantic import ValidationError
 
 load_dotenv()
 
@@ -41,6 +52,15 @@ os.makedirs(CALL_LOGS_DIR, exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("Missing DATABASE_URL.")
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
+
+if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER:
+    configure_sms_client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER)
+else:
+    logger.warning("Twilio SMS credentials missing; post-call SMS is disabled.")
 
 # Create the shared CockroachDB connection pool
 # The pool will be opened when FastAPI starts.
@@ -146,6 +166,9 @@ async def handle_media_stream(websocket: WebSocket):
         csv_writer = None
         caller_number = None
         call_id = None
+        call_started_at = None       # NEW
+        total_response_tokens = 0    # NEW
+        wrap_up_nudged = False       # NEW
         
         def log_conversation(speaker, text):
             if not text:
@@ -230,7 +253,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         async def receive_from_twilio():
             """Receive audio data from Twilio and send it to the OpenAI Realtime API."""
-            nonlocal stream_sid, latest_media_timestamp, csv_file, csv_writer, caller_number, call_id, response_start_timestamp_twilio, last_assistant_item
+            nonlocal stream_sid, latest_media_timestamp, csv_file, csv_writer, caller_number, call_id, call_started_at, response_start_timestamp_twilio, last_assistant_item
             try:
                 async for message in websocket.iter_text():
                     data = json.loads(message)
@@ -245,6 +268,7 @@ async def handle_media_stream(websocket: WebSocket):
                         stream_sid = data['start']['streamSid']
                         caller_number = data['start'].get('customParameters', {}).get('caller_number', 'unknown')
                         call_id = await generate_call_id()
+                        call_started_at = datetime.now(timezone.utc)
                         logger.info(
                                     "Generated live call ID: "
                                     "twilio_stream=%s call_id=%s caller=%s",
@@ -257,6 +281,15 @@ async def handle_media_stream(websocket: WebSocket):
                         response_start_timestamp_twilio = None
                         latest_media_timestamp = 0
                         last_assistant_item = None
+
+                        if caller_number != "unknown":
+                            returning_customer = await find_customer_by_phone(caller_number)
+                            if returning_customer:
+                                logger.info(
+                                    "Returning caller matched: caller=%s customer_id=%s",
+                                    caller_number, returning_customer["id"],
+                                )
+                                await send_returning_caller_context(openai_ws, returning_customer)
 
                         safe_caller = caller_number.replace('+', '')
                         csv_path = os.path.join(CALL_LOGS_DIR, f"{stream_sid}_{safe_caller}.csv")
@@ -277,7 +310,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
-            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_id
+            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_id, total_response_tokens, wrap_up_nudged
             try:
                 async for openai_message in openai_ws:
                     event = json.loads(openai_message)
@@ -308,6 +341,52 @@ async def handle_media_stream(websocket: WebSocket):
 
                     if event.get('type') == 'response.output_audio_transcript.done':
                         await save_conversation_turn("assistant", event.get('transcript', ''))
+
+                    if event.get('type') == 'response.done':
+                        usage = event.get('response', {}).get('usage', {}) or {}
+                        total_response_tokens += usage.get('total_tokens', 0)
+
+                        call_duration_seconds = None
+                        if call_started_at:
+                            call_duration_seconds = (datetime.now(timezone.utc) - call_started_at).total_seconds()
+
+                        token_limit_hit = total_response_tokens >= MAX_CONVERSATION_TOKENS * WRAP_UP_AT_PERCENT
+                        duration_limit_hit = (
+                            MAX_CALL_DURATION_SECONDS is not None
+                            and call_duration_seconds is not None
+                            and call_duration_seconds >= MAX_CALL_DURATION_SECONDS
+                        )
+
+                        if not wrap_up_nudged and (token_limit_hit or duration_limit_hit):
+                            wrap_up_nudged = True
+                            logger.info(
+                                "Nudging agent to wrap up: tokens=%s duration=%ss",
+                                total_response_tokens, call_duration_seconds,
+                            )
+                            await nudge_agent_to_wrap_up(openai_ws)
+
+                        response_obj = event.get('response', {}) or {}
+                        for output_item in response_obj.get('output', []):
+                            if output_item.get('type') != 'function_call':
+                                continue
+
+                            tool_name = output_item.get('name')
+                            try:
+                                tool_args = json.loads(output_item.get('arguments') or '{}')
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "Could not parse tool arguments for %s: %s",
+                                    tool_name, output_item.get('arguments'),
+                                )
+                                tool_args = {}
+
+                            if tool_name == 'end_call':
+                                logger.info("Agent requested end_call: %s", tool_args)
+                                await end_call_gracefully(websocket, openai_ws)
+
+                            elif tool_name == 'save_call_summary':
+                                logger.info("Agent requested save_call_summary: %s", tool_args)
+                                await save_structured_call(call_id, caller_number, tool_args)
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
                     if event.get('type') == 'input_audio_buffer.speech_started':
@@ -382,9 +461,100 @@ async def send_initial_conversation_item(openai_ws, greeting_text):
     await openai_ws.send(json.dumps(initial_conversation_item))
     await openai_ws.send(json.dumps({"type": "response.create"}))
 
+async def send_returning_caller_context(openai_ws, customer):
+    """Tell the agent what we already have on file for this caller."""
+    known_bits = []
+    if customer.get("full_name"):
+        known_bits.append(f"name on file: {customer['full_name']}")
+    if customer.get("address"):
+        known_bits.append(f"address on file: {customer['address']}")
+
+    if not known_bits:
+        return
+
+    context_note = (
+        "This is a returning caller. We have this on file: "
+        + "; ".join(known_bits)
+        + ". Greet them by name if it feels natural, and confirm the "
+        "name and address are still correct before proceeding — don't "
+        "just assume it's unchanged."
+    )
+
+    await openai_ws.send(json.dumps({
+        "type": "session.update",
+        "session": {
+            "type": "realtime",
+            "instructions": SYSTEM_MESSAGE + "\n\n" + context_note,
+        },
+    }))
+
+async def nudge_agent_to_wrap_up(openai_ws):
+    """Ask the agent to start closing out the call soon."""
+    await openai_ws.send(json.dumps({
+        "type": "session.update",
+        "session": {
+            "type": "realtime",
+            "instructions": (
+                SYSTEM_MESSAGE
+                + "\n\nThis call is running long. Wrap up the current "
+                "topic, confirm any next steps, and say goodbye within "
+                "your next couple of turns."
+            ),
+        },
+    }))
+
+async def end_call_gracefully(websocket, openai_ws):
+    """
+    Give the goodbye line time to finish playing over the phone, then
+    close the media-stream connection.
+
+    Closing this WebSocket makes Twilio's <Connect><Stream> verb end —
+    since nothing follows <Connect> in the TwiML, the call itself hangs up.
+    """
+    # audio for the goodbye line was already streamed to Twilio in this
+    # same response, before response.done fired — this just gives it a
+    # moment to actually finish playing over the phone line.
+    await asyncio.sleep(1.5)
+
+    if openai_ws.state.name == 'OPEN':
+        await openai_ws.close()
+
+    await websocket.close()
+
+async def save_structured_call(call_id, caller_number, arguments):
+    """
+    Build a CallCreate from the agent's save_call_summary tool call and
+    insert it the same way POST /calls does.
+    """
+    try:
+        call = CallCreate(
+            call_id=call_id,
+            caller_number=caller_number,
+            **arguments,
+        )
+    except ValidationError:
+        logger.exception(
+            "save_call_summary arguments failed validation: call_id=%s args=%s",
+            call_id, arguments,
+        )
+        return
+
+    try:
+        async with get_database_transaction() as connection:
+            await insert_call(connection, call)
+        logger.info("Saved structured call summary: call_id=%s", call_id)
+    except Exception:
+        logger.exception("Failed to save structured call summary: call_id=%s", call_id)
 
 async def initialize_session(openai_ws):
     """Control initial session with OpenAI."""
+    turn_detection = {"type": VAD_TYPE}
+    if VAD_TYPE == "server_vad":
+        turn_detection["silence_duration_ms"] = SILENCE_DURATION_MS
+        turn_detection["threshold"] = VAD_THRESHOLD
+    elif VAD_TYPE == "semantic_vad":
+        turn_detection["eagerness"] = VAD_EAGERNESS
+
     session_update = {
         "type": "session.update",
         "session": {
@@ -403,6 +573,79 @@ async def initialize_session(openai_ws):
                 }
             },
             "instructions": SYSTEM_MESSAGE,
+            "tools": [
+                {
+                    "type": "function",
+                    "name": "end_call",
+                    "description": (
+                        "End the phone call. Call this when the caller has "
+                        "clearly said goodbye, the task is fully handled, "
+                        "the caller is abusive/spam, or the conversation is "
+                        "stuck with no progress after a couple of redirects."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": [
+                                    "caller_said_goodbye",
+                                    "task_completed",
+                                    "abusive_or_spam",
+                                    "no_progress",
+                                ],
+                            }
+                        },
+                        "required": ["reason"],
+                    },
+                },
+                {
+                    "type": "function",
+                    "name": "save_call_summary",
+                    "description": (
+                        "Save a structured summary of this call for the business to "
+                        "review. Call this once, right before end_call, with whatever "
+                        "the caller was willing to share — it's fine to leave fields "
+                        "out if unknown."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Caller's full name, or the property owner's name if calling on someone else's behalf.",
+                            },
+                            "email": {"type": "string", "description": "Caller's email, if provided."},
+                            "address": {"type": "string", "description": "Property address needing service."},
+                            "problem": {
+                                "type": "string",
+                                "description": "Short label, e.g. 'Roof leak', 'Missing shingles', 'Storm damage'.",
+                            },
+                            "problem_detail": {
+                                "type": "string",
+                                "description": "More specific detail: where, how long, likely cause.",
+                            },
+                            "availability": {"type": "string", "description": "Days/times that work for a visit or callback."},
+                            "urgency": {
+                                "type": "string",
+                                "enum": ["Low", "Medium", "High", "Emergency"],
+                            },
+                            "calling_on_behalf_of": {
+                                "type": "string",
+                                "description": "Set only if the caller is calling on someone else's behalf.",
+                            },
+                            "summary": {
+                                "type": "string",
+                                "description": (
+                                    "1-3 sentence plain-language summary for the business "
+                                    "owner: what the caller needed and what was agreed."
+                                ),
+                            },
+                        },
+                        "required": ["summary", "urgency"],
+                    },
+                },
+            ],
         }
     }
     if VERBOSE:

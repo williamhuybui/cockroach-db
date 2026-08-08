@@ -44,6 +44,27 @@ router = APIRouter(
     tags=["customers"],
 )
 
+async def find_customer_by_phone(phone_number: str) -> dict | None:
+    """
+    Look up one customer by phone number, for use outside HTTP routes
+    (main.py uses this to recognize a returning caller mid-call).
+
+    Returns None on an invalid number or no match — never raises.
+    """
+
+    try:
+        normalized_phone = validate_phone_number(phone_number)
+    except ValueError:
+        return None
+
+    async with get_database_connection() as connection:
+        cursor = await connection.execute(
+            "SELECT * FROM customers WHERE phone_number = %s",
+            (normalized_phone,),
+        )
+        row = await cursor.fetchone()
+
+    return dict(row) if row else None
 
 @router.post(
     "",
