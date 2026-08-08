@@ -12,7 +12,7 @@ LOG_EVENT_TYPES = [
 ]
 SHOW_TIMING_MATH = False
 CALL_LOGS_DIR = "call_logs"
-SILENCE_DURATION_MS = 1000
+SILENCE_DURATION_MS = 600
 
 VAD_TYPE = "server_vad"     
 VAD_THRESHOLD = 0.5           
@@ -21,7 +21,7 @@ VAD_EAGERNESS = "auto"
 # Logging
 # True: log everything (connections, raw events, timing, etc.).
 # False: log only "phone_number: time: conversation" lines.
-VERBOSE = False
+VERBOSE = True
 
 # Greeting
 # "twilio": hardcoded <Say> greeting, played before the AI connects.
@@ -44,7 +44,7 @@ DATABASE_POOL_MAX_SIZE = 3
 
 MAX_CONVERSATION_TOKENS = 500
 WRAP_UP_AT_PERCENT = 0.85
-MAX_CALL_DURATION_SECONDS = 120
+MAX_CALL_DURATION_SECONDS = 600
 
 # Prompt
 COMPANY_NAME = "AM Construction Services"
@@ -96,9 +96,15 @@ SYSTEM_MESSAGE = (
     "this isn't a match and end the call — don't try to be helpful with unrelated sales "
     "pitches.\n\n"
  
-    "ENDING THE CALL: right before you say goodbye and call end_call, also call "
-    "save_call_summary with whatever details you've gathered — it's fine if some "
-    "fields are still unknown, just leave those out.\n"
+    "ENDING THE CALL: if the caller says goodbye or clearly wants to end the "
+    "call, respect that immediately — call save_call_summary with whatever "
+    "you have (even if incomplete) and end_call right away. Do NOT keep "
+    "asking for more details once the caller has said goodbye; missing "
+    "information is far better than an annoyed caller stuck on a call they "
+    "wanted to end.\n\n"
+    "Otherwise, right before you say goodbye and call end_call, also call "
+    "save_call_summary with whatever details you've gathered — it's fine if "
+    "some fields are still unknown, just leave those out.\n"
     "you have an end_call tool — use it, don't just go quiet or keep "
     "talking forever. Call end_call when ANY of these is true:\n"
     "- caller_said_goodbye: they've clearly said bye, thanks, or that's all for now.\n"

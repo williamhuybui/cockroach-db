@@ -166,9 +166,10 @@ async def handle_media_stream(websocket: WebSocket):
         csv_writer = None
         caller_number = None
         call_id = None
-        call_started_at = None       # NEW
-        total_response_tokens = 0    # NEW
-        wrap_up_nudged = False       # NEW
+        call_started_at = None       
+        total_response_tokens = 0    
+        wrap_up_nudged = False      
+        ending_call = False  
         
         def log_conversation(speaker, text):
             if not text:
@@ -210,18 +211,20 @@ async def handle_media_stream(websocket: WebSocket):
                 cleaned_text,
             )
 
-            # Keep the CSV file as an optional backup.
-            if csv_writer:
-                csv_writer.writerow(
-                    [
-                        transcript_timestamp.isoformat(),
-                        caller_number,
-                        speaker,
-                        cleaned_text,
-                    ]
-                )
+            if csv_writer and csv_file and not csv_file.closed:
+                try:
+                    csv_writer.writerow(
+                        [
+                            transcript_timestamp.isoformat(),
+                            caller_number,
+                            speaker,
+                            cleaned_text,
+                        ]
+                    )
 
-                csv_file.flush()
+                    csv_file.flush()
+                except ValueError:
+                    logger.warning("CSV already closed; skipping backup write.")
 
             try:
                 saved_transcript = await create_transcript_turn(
@@ -299,7 +302,7 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'mark':
                         if mark_queue:
                             mark_queue.pop(0)
-            except WebSocketDisconnect:
+            except (WebSocketDisconnect, RuntimeError):
                 if VERBOSE:
                     logger.info("Client disconnected.")
                 if openai_ws.state.name == 'OPEN':
@@ -310,7 +313,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
-            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_id, total_response_tokens, wrap_up_nudged
+            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_id, total_response_tokens, wrap_up_nudged, ending_call
             try:
                 async for openai_message in openai_ws:
                     event = json.loads(openai_message)
@@ -365,28 +368,41 @@ async def handle_media_stream(websocket: WebSocket):
                             )
                             await nudge_agent_to_wrap_up(openai_ws)
 
+                        # --- Handle tool calls ---
                         response_obj = event.get('response', {}) or {}
-                        for output_item in response_obj.get('output', []):
-                            if output_item.get('type') != 'function_call':
-                                continue
+                        tool_calls = [
+                            item for item in response_obj.get('output', [])
+                            if item.get('type') == 'function_call'
+                        ]
 
-                            tool_name = output_item.get('name')
-                            try:
-                                tool_args = json.loads(output_item.get('arguments') or '{}')
-                            except json.JSONDecodeError:
-                                logger.warning(
-                                    "Could not parse tool arguments for %s: %s",
-                                    tool_name, output_item.get('arguments'),
-                                )
-                                tool_args = {}
+                        if ending_call:
+                            await end_call_gracefully(websocket, openai_ws)
 
-                            if tool_name == 'end_call':
-                                logger.info("Agent requested end_call: %s", tool_args)
-                                await end_call_gracefully(websocket, openai_ws)
+                        elif tool_calls:
+                            for output_item in tool_calls:
+                                tool_name = output_item.get('name')
+                                tool_call_id = output_item.get('call_id')
+                                try:
+                                    tool_args = json.loads(output_item.get('arguments') or '{}')
+                                except json.JSONDecodeError:
+                                    logger.warning(
+                                        "Could not parse tool arguments for %s: %s",
+                                        tool_name, output_item.get('arguments'),
+                                    )
+                                    tool_args = {}
 
-                            elif tool_name == 'save_call_summary':
-                                logger.info("Agent requested save_call_summary: %s", tool_args)
-                                await save_structured_call(call_id, caller_number, tool_args)
+                                if tool_name == 'end_call':
+                                    logger.info("Agent requested end_call: %s", tool_args)
+                                    ending_call = True
+                                    await send_tool_result(openai_ws, tool_call_id, {"status": "ending_call"})
+
+                                elif tool_name == 'save_call_summary':
+                                    logger.info("Agent requested save_call_summary: %s", tool_args)
+                                    await save_structured_call(call_id, caller_number, tool_args)
+                                    await send_tool_result(openai_ws, tool_call_id, {"status": "saved"})
+
+                            await openai_ws.send(json.dumps({"type": "response.create"}))
+                
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
                     if event.get('type') == 'input_audio_buffer.speech_started':
@@ -519,7 +535,23 @@ async def end_call_gracefully(websocket, openai_ws):
     if openai_ws.state.name == 'OPEN':
         await openai_ws.close()
 
-    await websocket.close()
+    try:
+        await websocket.close()
+    except RuntimeError:
+        pass
+
+async def send_tool_result(openai_ws, tool_call_id, result: dict):
+    """Send a function's result back so the agent is unblocked and can continue."""
+    if not tool_call_id:
+        return
+    await openai_ws.send(json.dumps({
+        "type": "conversation.item.create",
+        "item": {
+            "type": "function_call_output",
+            "call_id": tool_call_id,
+            "output": json.dumps(result),
+        },
+    }))
 
 async def save_structured_call(call_id, caller_number, arguments):
     """
