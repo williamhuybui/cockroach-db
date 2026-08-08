@@ -1,0 +1,10 @@
+timestamp,caller_number,speaker,text
+2026-08-14T17:30:00,+14175551002,assistant,Hello! I'm a virtual assistant for The Front Desk That Never Sleeps. Is there something going on with your roof I can help with today?
+2026-08-14T17:30:18,+14175551002,caller,"Hi, um, this is Denise Coleman again, I called earlier this week about the shingles blowing off my roof."
+2026-08-14T17:30:42,+14175551002,assistant,"Hi Denise, yes, I do see your call from earlier this week about the shingle damage at 77 Maplewood Drive. What can I help with?"
+2026-08-14T17:31:06,+14175551002,caller,"I just wanted to check in and see if anyone's actually been assigned to come look at it yet, it's been a few days."
+2026-08-14T17:31:30,+14175551002,assistant,Totally understandable. Let me flag that for a status update — I'll make sure someone follows up with you today with where things stand.
+2026-08-14T17:32:00,+14175551002,caller,"Okay, I appreciate that. And is the morning-before-11 window still what you all have on file for me?"
+2026-08-14T17:32:18,+14175551002,assistant,"Yes, that's still what we have noted."
+2026-08-14T17:32:36,+14175551002,caller,"Great, that still works for me, no changes needed."
+2026-08-14T17:32:54,+14175551002,assistant,"Perfect, we'll be in touch soon. Thanks for calling, Denise — take care!"

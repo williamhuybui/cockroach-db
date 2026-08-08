@@ -1,0 +1,15 @@
+timestamp,caller_number,speaker,text
+2026-08-30T17:00:00,+14175551008,assistant,Hello! I'm a virtual assistant for The Front Desk That Never Sleeps. Is there something going on with your roof I can help with today?
+2026-08-30T17:00:18,+14175551008,caller,"Hi, this is Whitney Foster again — different issue this time though, my skylight's been leaking."
+2026-08-30T17:00:48,+14175551008,assistant,"Hi Whitney, sorry to hear about the skylight. Is it actively leaking right now, or more of an intermittent thing?"
+2026-08-30T17:01:18,+14175551008,caller,"Just after it rains, a little water pools around the frame, doesn't seem constant."
+2026-08-30T17:01:48,+14175551008,caller,"Also, while I've got you, my garbage disposal's been broken for a few weeks now, any chance you all handle that kind of thing too?"
+2026-08-30T17:02:18,+14175551008,assistant,"Is the disposal issue connected to any water coming from above, or is that a totally separate plumbing problem?"
+2026-08-30T17:02:42,+14175551008,caller,"No, totally separate, it's just the disposal itself acting up, nothing to do with water from the roof."
+2026-08-30T17:03:06,+14175551008,assistant,"Got it, that one would need a plumber then, sorry about that — but let's get the skylight sorted. Same address, 14 Oakhaven Circle?"
+2026-08-30T17:03:24,+14175551008,caller,"Yep, same place, still single-family."
+2026-08-30T17:03:42,+14175551008,assistant,Got it. What time works for someone to take a look at the skylight?
+2026-08-30T17:04:00,+14175551008,caller,"Weekday mornings still work best for me, same as last time."
+2026-08-30T17:04:24,+14175551008,assistant,"So we've got Whitney Foster, 14 Oakhaven Circle, weekday mornings, for the skylight leak. Anything else before we wrap up?"
+2026-08-30T17:04:42,+14175551008,caller,"No, that's everything."
+2026-08-30T17:04:54,+14175551008,assistant,"Thanks for calling, Whitney!"

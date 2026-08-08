@@ -1,8 +1,0 @@
-timestamp,caller_number,speaker,text
-2026-08-16T00:00:00,+14175551007,assistant,"Front desk for the roofing company, how can I help?"
-2026-08-16T00:00:18,+14175551007,caller,Just calling to confirm the inspection is still on for this week.
-2026-08-16T00:00:36,+14175551007,assistant,"Yes, confirmed for Thursday morning. Does that still work?"
-2026-08-16T00:01:00,+14175551007,caller,"Thursday morning works, or actually Friday afternoon could work too if morning falls through."
-2026-08-16T00:01:24,+14175551007,assistant,"Got it, I'll note Thursday morning as the primary and Friday afternoon as a backup in case anything shifts."
-2026-08-16T00:01:36,+14175551007,caller,"Perfect, thank you."
-2026-08-16T00:01:42,+14175551007,assistant,"You're welcome, Carlos, see you then."

@@ -1,0 +1,17 @@
+timestamp,caller_number,speaker,text
+2026-08-12T00:00:00,+14175551008,assistant,Hello! I'm a virtual assistant for The Front Desk That Never Sleeps. Is there something going on with your roof I can help with today?
+2026-08-12T00:00:18,+14175551008,caller,"Hi, I'd like to get my gutters cleaned out, they've been pretty neglected for a while now."
+2026-08-12T00:00:42,+14175551008,assistant,"Sure, we can help with that. Could I get your full name?"
+2026-08-12T00:00:54,+14175551008,caller,Whitney Foster.
+2026-08-12T00:01:12,+14175551008,assistant,"Thanks for that, Whitney. Email address?"
+2026-08-12T00:01:30,+14175551008,caller,whitney dot f at gmail dot com.
+2026-08-12T00:01:54,+14175551008,assistant,Got it. And the property address?
+2026-08-12T00:02:06,+14175551008,caller,14 Oakhaven Circle.
+2026-08-12T00:02:18,+14175551008,assistant,"Unit number, or single-family?"
+2026-08-12T00:02:30,+14175551008,caller,Single-family.
+2026-08-12T00:02:48,+14175551008,assistant,"Got it. Any specific concerns, or is this just routine cleaning?"
+2026-08-12T00:03:06,+14175551008,caller,"Just routine, nothing urgent going on right now."
+2026-08-12T00:03:24,+14175551008,assistant,Got it. What's a good time?
+2026-08-12T00:03:36,+14175551008,caller,Weekday mornings usually work best for me.
+2026-08-12T00:03:54,+14175551008,assistant,"So we've got Whitney Foster, 14 Oakhaven Circle, weekday mornings. Anything else before we wrap up?"
+2026-08-12T00:04:12,+14175551008,caller,"No, that's it."

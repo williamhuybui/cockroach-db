@@ -1,0 +1,14 @@
+timestamp,caller_number,speaker,text
+2026-08-17T06:15:00,+14175551006,assistant,Hello! I'm a virtual assistant for The Front Desk That Never Sleeps. Is there something going on with your roof I can help with today?
+2026-08-17T06:15:09,+14175551006,caller,"Water is pouring through my ceiling right now, I need somebody out here tonight, please!"
+2026-08-17T06:15:18,+14175551006,assistant,"Understood, this is urgent, let's get your information right away. Could I get your full name?"
+2026-08-17T06:15:24,+14175551006,caller,Latoya Brooks.
+2026-08-17T06:15:30,+14175551006,assistant,"Thanks, Latoya. And the address?"
+2026-08-17T06:15:36,+14175551006,caller,930 Crestline Drive.
+2026-08-17T06:15:42,+14175551006,assistant,"Unit number, or single-family?"
+2026-08-17T06:15:48,+14175551006,caller,Single-family.
+2026-08-17T06:15:57,+14175551006,assistant,"Got it. Is the water coming from one spot, or is it spreading across the ceiling?"
+2026-08-17T06:16:12,+14175551006,caller,"One spot in the living room but it's getting worse fast, I've already got buckets out."
+2026-08-17T06:16:30,+14175551006,assistant,"Okay, I'm flagging this as an emergency right now and getting someone to call you back within the hour. Is the number you're calling from the best one to reach you?"
+2026-08-17T06:16:42,+14175551006,caller,"Yes, this number, please hurry."
+2026-08-17T06:16:54,+14175551006,assistant,"Understood, someone will call you very shortly. Hang in there, Latoya."
