@@ -39,7 +39,7 @@ DATABASE_POOL_MIN_SIZE = 1
 DATABASE_POOL_MAX_SIZE = 3
 
 # Prompt
-COMPANY_NAME = "AM Construction Services"
+COMPANY_NAME = "The Front Desk That Never Sleeps"
 
 SYSTEM_MESSAGE = (
     f"You are the virtual front-desk assistant for {COMPANY_NAME}, a roofing and "
