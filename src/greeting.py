@@ -3,7 +3,7 @@ from config import COMPANY_NAME
 # 1) Twilio's built-in <Say> verb
 # Pro: the caller can't interrupt it, and it's easy to switch voices per language.
 # Con: requires more hardcoded logic to design.
-CALL_DURATION_MINUTES = 10
+CALL_DURATION_MINUTES = 5
 
 def greeting_twilio(response):
     """Add the hardcoded <Say> greeting lines to a TwiML VoiceResponse."""
@@ -15,11 +15,6 @@ def greeting_twilio(response):
         "fully resolve your issue by then, I'll pass your details to a "
         "team member who will call you back.",
         voice="Google.en-US-Chirp3-HD-Aoede"
-    )
-    response.pause(length=1)
-    response.say(
-        "Quý khách có thể nói tiếng Việt nếu cần hỗ trợ.",
-        voice="Google.vi-VN-Chirp3-HD-Aoede"
     )
     response.pause(length=1)
     response.say(

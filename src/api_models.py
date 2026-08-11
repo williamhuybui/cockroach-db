@@ -71,6 +71,10 @@ CallStatus = Literal[
     "disconnected",
 ]
 
+TaskStatus = Literal[
+    "open",
+    "done",
+]
 
 class APIModel(BaseModel):
     """
@@ -184,6 +188,26 @@ def clean_optional_text(
     return cleaned_text
 
 
+
+def clean_string_list(
+    values: list[str] | None,
+) -> list[str] | None:
+    """
+    Clean an optional list of short text values (tags or to-do items).
+
+    Blank entries are dropped. An empty result becomes None.
+    """
+
+    if values is None:
+        return None
+
+    cleaned = [
+        value.strip()
+        for value in values
+        if value and value.strip()
+    ]
+
+    return cleaned or None
 # -------------------------------------------------------------------
 # Transcript models
 # -------------------------------------------------------------------
@@ -468,6 +492,9 @@ class CallCreate(APIModel):
 
     status: CallStatus = "completed"
 
+    tags: list[str] | None = None
+    todo_items: list[str] | None = None
+
     @field_validator("call_id")
     @classmethod
     def check_call_id(
@@ -508,6 +535,20 @@ class CallCreate(APIModel):
 
         return validate_phone_number(
             caller_number
+        )
+
+    @field_validator("tags", "todo_items")
+    @classmethod
+    def check_string_lists(
+        cls,
+        values,
+    ):
+        """
+        Clean tags and to-do items: strip each entry, drop blanks.
+        """
+
+        return clean_string_list(
+            values
         )
 
     @field_validator(
@@ -639,9 +680,31 @@ class CallResponse(APIModel):
     problem_detail: str | None = None
     availability: str | None = None
     urgency: CallUrgency | None = None
+    tags: list[str] | None = None
 
     previous_call_id: str | None = None
     calling_on_behalf_of: str | None = None
     summary: str | None = None
     ended_at: datetime | None = None
     saved_to_db_at: datetime
+
+class TaskUpdate(APIModel):
+    """
+    Request body for changing a task's status from the dashboard.
+    """
+
+    status: TaskStatus
+
+
+class TaskResponse(APIModel):
+    """
+    One follow-up task returned by the API.
+    """
+
+    id: UUID
+    call_id: str
+    customer_id: UUID
+    description: str
+    status: TaskStatus
+    created_at: datetime
+    updated_at: datetime

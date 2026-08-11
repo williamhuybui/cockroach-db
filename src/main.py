@@ -12,11 +12,12 @@ from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from dotenv import load_dotenv
 from config import (
-    TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH,
+    HARD_CUTOFF_GRACE_SECONDS, TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH,
     CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE,
-    VAD_TYPE, VAD_THRESHOLD, VAD_EAGERNESS,
+    VAD_TYPE, VAD_THRESHOLD, VAD_EAGERNESS, VAD_NOISE_REDUCTION,   
     MAX_CONVERSATION_TOKENS, WRAP_UP_AT_PERCENT, MAX_CALL_DURATION_SECONDS,
 )
+
 from greeting import greeting_twilio, greeting_openai
 from database import get_database_transaction, configure_database
 from sms_service import configure_sms_client 
@@ -26,7 +27,8 @@ from contextlib import asynccontextmanager
 
 from routers.health import router as health_router
 from routers.transcripts import router as transcripts_router
-from routers.customers import router as customers_router
+from routers.customers import router as customers_router, get_customer_memory
+from routers.tasks import router as tasks_router
 from routers.calls import router as calls_router
 from services.transcript_service import create_transcript_turn, generate_call_id
 from routers.customers import router as customers_router, find_customer_by_phone
@@ -91,6 +93,7 @@ app.include_router(health_router)
 app.include_router(transcripts_router)
 app.include_router(customers_router)
 app.include_router(calls_router)
+app.include_router(tasks_router) 
 
 # Basic application route
 @app.get("/", response_class=JSONResponse)
@@ -167,7 +170,8 @@ async def handle_media_stream(websocket: WebSocket):
         caller_number = None
         call_id = None
         call_started_at = None       
-        total_response_tokens = 0    
+        total_response_tokens = 0   
+        duration_forced = False     
         wrap_up_nudged = False      
         ending_call = False  
         
@@ -286,7 +290,7 @@ async def handle_media_stream(websocket: WebSocket):
                         last_assistant_item = None
 
                         if caller_number != "unknown":
-                            returning_customer = await find_customer_by_phone(caller_number)
+                            returning_customer = await get_customer_memory(caller_number)
                             if returning_customer:
                                 logger.info(
                                     "Returning caller matched: caller=%s customer_id=%s",
@@ -313,7 +317,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
-            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_id, total_response_tokens, wrap_up_nudged, ending_call
+            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_id, total_response_tokens, wrap_up_nudged, ending_call, duration_forced
             try:
                 async for openai_message in openai_ws:
                     event = json.loads(openai_message)
@@ -368,6 +372,18 @@ async def handle_media_stream(websocket: WebSocket):
                             )
                             await nudge_agent_to_wrap_up(openai_ws)
 
+                        duration_hard_limit_hit = (
+                            MAX_CALL_DURATION_SECONDS is not None
+                            and call_duration_seconds is not None
+                            and call_duration_seconds >= MAX_CALL_DURATION_SECONDS
+                        )
+                        if not ending_call and not duration_forced and duration_hard_limit_hit:
+                            duration_forced = True
+                            logger.info("Max call duration reached (%ss); forcing wrap-up.", call_duration_seconds)
+                            await force_end_call_now(openai_ws)
+                            asyncio.create_task(enforce_hard_duration_cutoff())
+
+
                         # --- Handle tool calls ---
                         response_obj = event.get('response', {}) or {}
                         tool_calls = [
@@ -414,7 +430,22 @@ async def handle_media_stream(websocket: WebSocket):
                             await handle_speech_started_event()
             except Exception:
                 logger.exception("Error in send_to_twilio")
-
+        async def enforce_hard_duration_cutoff():
+            """
+            Safety net: if the agent hasn't actually ended the call within the
+            grace period after force_end_call_now(), close the connection
+            ourselves — don't rely on the model cooperating.
+            """
+            nonlocal ending_call
+            await asyncio.sleep(HARD_CUTOFF_GRACE_SECONDS)
+            if not ending_call:
+                logger.warning(
+                    "Agent did not end the call after the forced wrap-up "
+                    "instruction; closing the connection directly."
+                )
+                ending_call = True
+                await end_call_gracefully(websocket, openai_ws)
+                
         async def handle_speech_started_event():
             """Handle interruption when the caller's speech starts."""
             nonlocal response_start_timestamp_twilio, last_assistant_item
@@ -477,47 +508,151 @@ async def send_initial_conversation_item(openai_ws, greeting_text):
     await openai_ws.send(json.dumps(initial_conversation_item))
     await openai_ws.send(json.dumps({"type": "response.create"}))
 
-async def send_returning_caller_context(openai_ws, customer):
-    """Tell the agent what we already have on file for this caller."""
-    known_bits = []
-    if customer.get("full_name"):
-        known_bits.append(f"name on file: {customer['full_name']}")
-    if customer.get("address"):
-        known_bits.append(f"address on file: {customer['address']}")
-
-    if not known_bits:
-        return
-
-    context_note = (
-        "This is a returning caller. We have this on file: "
-        + "; ".join(known_bits)
-        + ". Greet them by name if it feels natural, and confirm the "
-        "name and address are still correct before proceeding — don't "
-        "just assume it's unchanged."
-    )
-
-    await openai_ws.send(json.dumps({
+def build_realtime_session_update(instructions: str) -> dict:
+    """
+    Build a full session.update payload instead of an instructions-only
+    one, so a mid-call update can never accidentally reset the voice or
+    turn-detection settings the call started with.
+    """
+    return {
         "type": "session.update",
         "session": {
             "type": "realtime",
-            "instructions": SYSTEM_MESSAGE + "\n\n" + context_note,
+            "instructions": instructions,
+            "audio": {
+                "input": {
+                    "format": {"type": "audio/pcmu"},
+                    "turn_detection": {
+                        "type": VAD_TYPE,
+                        "silence_duration_ms": SILENCE_DURATION_MS,
+                    },
+                    "noise_reduction": {"type": VAD_NOISE_REDUCTION},
+                },
+                "output": {
+                    "format": {"type": "audio/pcmu"},
+                    "voice": VOICE,
+                },
+            },
         },
-    }))
+    }
+
+def describe_pending_request(customer: dict) -> str | None:
+    """
+    Build a line the agent can use to open with the caller's specific
+    still-open request, mirroring: "I see you previously called about
+    X, and it hasn't been Y yet." Returns None when there's nothing
+    open to reference (either no history, or the last request is done).
+    """
+
+    open_tasks = customer.get("open_tasks") or []
+    last_call = customer.get("last_call")
+
+    if not open_tasks or not last_call:
+        return None
+
+    problem = last_call.get("problem") or "your previous request"
+    pending_summary = "; ".join(open_tasks)
+
+    return (
+        f"I see you previously called about {problem}, and it looks "
+        f"like it's still pending: {pending_summary}. Is that still "
+        "what you're calling about, and is everything on file still "
+        "correct?"
+    )
+
+async def send_returning_caller_context(openai_ws, customer):
+    """
+    Tell the agent exactly what's already on file for this caller and
+    instruct it to confirm rather than re-collect: don't run the full
+    intake again, just check what's changed.
+    """
+    known_fields = []
+    if customer.get("full_name"):
+        known_fields.append(f"name: {customer['full_name']}")
+    if customer.get("address"):
+        known_fields.append(f"address: {customer['address']}")
+    if customer.get("email"):
+        known_fields.append(f"email: {customer['email']}")
+
+    last_call = customer.get("last_call")
+    if last_call:
+        if last_call.get("problem"):
+            known_fields.append(f"problem: {last_call['problem']}")
+        if last_call.get("problem_detail"):
+            known_fields.append(f"problem detail: {last_call['problem_detail']}")
+        if last_call.get("availability"):
+            known_fields.append(f"availability given: {last_call['availability']}")
+        if last_call.get("urgency"):
+            known_fields.append(f"urgency noted: {last_call['urgency']}")
+
+    if not known_fields and not customer.get("open_tasks"):
+        return  # nothing useful on file — let the normal fresh intake run
+
+    lines = [
+        "This is a returning caller. Here is what's already on file — "
+        "do NOT ask the caller for any of this again unless they tell "
+        "you it has changed: "
+        + ("; ".join(known_fields) if known_fields else "(no prior details on file)")
+        + ".",
+    ]
+
+    pending = describe_pending_request(customer)
+
+    if pending:
+        lines.append(
+            "Their previous request has not been completed yet. Open "
+            f"by referencing it directly — for example: \"{pending}\" "
+            "— rather than starting the intake over."
+        )
+    else:
+        lines.append(
+            "Their previous request appears to have been completed. "
+            "Ask whether this call is about the same thing again or "
+            "something new."
+        )
+
+    lines.append(
+        "Only ask about information that is missing above, or that the "
+        "caller tells you has changed. Do not repeat the full intake."
+    )
+
+    context_note = " ".join(lines)
+
+    await openai_ws.send(json.dumps(
+        build_realtime_session_update(SYSTEM_MESSAGE + "\n\n" + context_note)
+    ))
 
 async def nudge_agent_to_wrap_up(openai_ws):
     """Ask the agent to start closing out the call soon."""
-    await openai_ws.send(json.dumps({
-        "type": "session.update",
-        "session": {
-            "type": "realtime",
-            "instructions": (
-                SYSTEM_MESSAGE
-                + "\n\nThis call is running long. Wrap up the current "
-                "topic, confirm any next steps, and say goodbye within "
-                "your next couple of turns."
-            ),
-        },
-    }))
+    await openai_ws.send(json.dumps(
+        build_realtime_session_update(
+            SYSTEM_MESSAGE
+            + "\n\nThis call is running long. Wrap up the current "
+            "topic, confirm any next steps, and say goodbye within "
+            "your next couple of turns."
+        )
+    ))
+
+
+async def force_end_call_now(openai_ws):
+    """
+    Hard duration limit reached — stop being polite about it. Tell the
+    agent to close the call THIS turn: one short line, then hang up, no
+    more questions. Proactively trigger the turn instead of waiting for
+    the caller to speak again.
+    """
+    await openai_ws.send(json.dumps(
+        build_realtime_session_update(
+            SYSTEM_MESSAGE
+            + "\n\nThis call has reached its maximum allowed length. "
+            "Do not ask any more questions or continue the "
+            "conversation. Right now, say one brief, polite closing "
+            "line (e.g. thank them and let them know the team has "
+            "what they need or will follow up), then immediately call "
+            "end_call."
+        )
+    ))
+    await openai_ws.send(json.dumps({"type": "response.create"}))
 
 async def end_call_gracefully(websocket, openai_ws):
     """
@@ -596,7 +731,8 @@ async def initialize_session(openai_ws):
             "audio": {
                 "input": {
                     "format": {"type": "audio/pcmu"},
-                    "turn_detection": {"type": "server_vad", "silence_duration_ms": SILENCE_DURATION_MS},
+                    "turn_detection": turn_detection,
+                    "noise_reduction": {"type": VAD_NOISE_REDUCTION},
                     "transcription": {"model": "whisper-1"}
                 },
                 "output": {
@@ -671,6 +807,26 @@ async def initialize_session(openai_ws):
                                 "description": (
                                     "1-3 sentence plain-language summary for the business "
                                     "owner: what the caller needed and what was agreed."
+                                ),
+                            },
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": (
+                                    "Short topic labels for this call, e.g. "
+                                    "'schedule', 'quote', 'follow-up', "
+                                    "'emergency', 'complaint'."
+                                ),
+                            },
+                            "todo_items": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": (
+                                    "Concrete next steps the business still "
+                                    "needs to do before this request is fully "
+                                    "resolved, e.g. 'Call back to confirm "
+                                    "Tuesday 2pm appointment', 'Email the "
+                                    "estimate'. Leave empty if nothing is left."
                                 ),
                             },
                         },

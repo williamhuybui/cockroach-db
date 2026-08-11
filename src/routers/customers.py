@@ -66,6 +66,48 @@ async def find_customer_by_phone(phone_number: str) -> dict | None:
 
     return dict(row) if row else None
 
+async def get_customer_memory(phone_number: str) -> dict | None:
+    """
+    Full context for a returning caller: profile + their last call +
+    any pending (open) tasks. Used by main.py to prime the agent at
+    the start of a call so it can tell a follow-up from a new request.
+    """
+
+    customer = await find_customer_by_phone(phone_number)
+
+    if customer is None:
+        return None
+
+    async with get_database_connection() as connection:
+        call_cursor = await connection.execute(
+            """
+            SELECT "timestamp", problem, problem_detail,
+                   availability, urgency, summary
+            FROM calls
+            WHERE caller_number = %s
+            ORDER BY "timestamp" DESC
+            LIMIT 1
+            """,
+            (customer["phone_number"],),
+        )
+        last_call = await call_cursor.fetchone()
+
+        tasks_cursor = await connection.execute(
+            """
+            SELECT description
+            FROM tasks
+            WHERE customer_id = %s AND status = 'open'
+            ORDER BY created_at
+            """,
+            (customer["id"],),
+        )
+        open_tasks = await tasks_cursor.fetchall()
+
+    customer["last_call"] = dict(last_call) if last_call else None
+    customer["open_tasks"] = [row["description"] for row in open_tasks]
+
+    return customer
+
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,

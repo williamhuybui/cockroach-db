@@ -247,6 +247,46 @@ async def upsert_customer(
 
     return customer["id"]
 
+async def create_tasks_for_call(
+    connection,
+    call,
+    customer_id,
+):
+    """
+    Create one open task per actionable to-do item on this call.
+
+    This is what the dashboard shows the business owner: things still
+    to be done before the caller's request is finished (e.g. an
+    appointment isn't confirmed yet). If the agent didn't return
+    explicit todo_items but did report a problem, fall back to one
+    generic follow-up task so nothing falls through the cracks.
+    """
+
+    todo_items = call.todo_items or []
+
+    if not todo_items and call.problem:
+        todo_items = [f"Follow up on: {call.problem}"]
+
+    for description in todo_items:
+        await connection.execute(
+            """
+            INSERT INTO tasks (
+                call_id,
+                customer_id,
+                description
+            )
+            VALUES (
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (
+                call.call_id,
+                customer_id,
+                description,
+            ),
+        )
 
 async def insert_call(
     connection,
@@ -298,6 +338,7 @@ async def insert_call(
     )
 
     # Save one structured record for the completed call.
+    # Save one structured record for the completed call.
     cursor = await connection.execute(
         """
         INSERT INTO calls (
@@ -313,28 +354,15 @@ async def insert_call(
             problem_detail,
             availability,
             urgency,
+            tags,
             previous_call_id,
             calling_on_behalf_of,
             summary,
             ended_at
         )
         VALUES (
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s
+            %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s
         )
         RETURNING *
         """,
@@ -351,6 +379,7 @@ async def insert_call(
             call.problem_detail,
             call.availability,
             call.urgency,
+            call.tags,
             call.previous_call_id,
             call.calling_on_behalf_of,
             call.summary,
@@ -364,6 +393,13 @@ async def insert_call(
         raise RuntimeError(
             "Call insert returned no row."
         )
+
+    # Create the to-do items the dashboard will show for this call.
+    await create_tasks_for_call(
+        connection,
+        call,
+        customer_id,
+    )
 
     return row
 

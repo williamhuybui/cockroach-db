@@ -12,11 +12,12 @@ LOG_EVENT_TYPES = [
 ]
 SHOW_TIMING_MATH = False
 CALL_LOGS_DIR = "call_logs"
-SILENCE_DURATION_MS = 600
+SILENCE_DURATION_MS = 2000
 
 VAD_TYPE = "server_vad"     
-VAD_THRESHOLD = 0.5           
+VAD_THRESHOLD = 0.7         
 VAD_EAGERNESS = "auto"  
+VAD_NOISE_REDUCTION = "near_field"
 
 # Logging
 # True: log everything (connections, raw events, timing, etc.).
@@ -44,7 +45,8 @@ DATABASE_POOL_MAX_SIZE = 3
 
 MAX_CONVERSATION_TOKENS = 500
 WRAP_UP_AT_PERCENT = 0.85
-MAX_CALL_DURATION_SECONDS = 600
+MAX_CALL_DURATION_SECONDS = 300
+HARD_CUTOFF_GRACE_SECONDS = 20 
 
 # Prompt
 COMPANY_NAME = "AM Construction Services"
@@ -59,6 +61,14 @@ SYSTEM_MESSAGE = (
     f"\"I'm only able to help with roofing and restoration questions for {COMPANY_NAME} "
     "— is there something about your roof or an appointment I can help with?\" Never "
     "answer questions outside this scope, even if the caller insists or rephrases.\n\n"
+
+    "LANGUAGE AND VOICE CONSISTENCY: stay in the same spoken language and "
+    "voice you greeted the caller with for the rest of the call. Only "
+    "switch language if the caller clearly and intentionally starts "
+    "speaking a different language themselves — never switch because of "
+    "background noise, a misheard word, or one ambiguous phrase, and "
+    "never switch back and forth. If you're unsure what the caller "
+    "wants, just ask them directly.\n\n"
 
     "INFORMATION TO COLLECT: over the course of the call, naturally gather these "
     "details — weave them into the conversation, don't read them as a checklist:\n"
@@ -80,6 +90,10 @@ SYSTEM_MESSAGE = (
     "- New inspection/estimate request: get the property address and a short description "
     "of the issue, then offer to schedule a visit. Never quote an exact price — pricing "
     "depends on an in-person inspection.\n"
+    "- Returning caller with a pending request already on file: don't run the full "
+    "intake again. Reference the specific pending item directly (a per-call note may "
+    "already give you this), confirm the contact and service details already on file "
+    "are still correct, and ask only about what's new, missing, or has changed.\n"
     "- Active leak or storm damage right now: treat it as urgent. Prioritize getting the "
     "address and a callback number quickly, reassure them, and let them know a team "
     "member will call back as soon as possible. Don't promise a specific arrival time "
@@ -102,6 +116,11 @@ SYSTEM_MESSAGE = (
     "asking for more details once the caller has said goodbye; missing "
     "information is far better than an annoyed caller stuck on a call they "
     "wanted to end.\n\n"
+    "Before ending because the task is fully handled (task_completed), ask "
+    "a quick 'Is there anything else I can help you with?' and wait for "
+    "their answer — only call end_call after they confirm there's nothing "
+    "else. Skip this question if the caller already said goodbye (handled "
+    "above), or if you're ending for abusive_or_spam / no_progress.\n\n"
     "Otherwise, right before you say goodbye and call end_call, also call "
     "save_call_summary with whatever details you've gathered — it's fine if "
     "some fields are still unknown, just leave those out.\n"
