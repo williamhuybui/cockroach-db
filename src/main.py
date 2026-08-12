@@ -5,7 +5,7 @@ import base64
 import asyncio
 import logging
 import websockets
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.websockets import WebSocketDisconnect
@@ -35,6 +35,7 @@ register_dashboard(app)
 async def index_page():
     return {"message": "Twilio Media Stream Server is running!"}
 
+# Twilio incoming-call route
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(request: Request):
     """Handle incoming call and return TwiML response to connect to Media Stream."""
@@ -75,6 +76,7 @@ async def handle_incoming_call(request: Request):
     #      begin the conversation.
     return HTMLResponse(content=str(response), media_type="application/xml")
 
+# Twilio/OpenAI media-stream WebSocket
 @app.websocket("/media-stream")
 async def handle_media_stream(websocket: WebSocket):
     """Handle WebSocket connections between Twilio and OpenAI."""
@@ -110,9 +112,82 @@ async def handle_media_stream(websocket: WebSocket):
                 csv_writer.writerow([datetime.now().isoformat(), caller_number, speaker, text, input_tokens, output_tokens])
                 csv_file.flush()
 
+        async def save_conversation_turn(speaker: str, text: str):
+            """
+            Save one completed caller or assistant transcript turn.
+            """
+
+            cleaned_text = text.strip()
+
+            if not cleaned_text:
+                return
+
+            if call_id is None:
+                logger.error(
+                    "Cannot save transcript because call_id has not been generated."
+                )
+                return
+
+            if not caller_number or caller_number == "unknown":
+                logger.error(
+                    "Cannot save transcript because caller_number is missing."
+                )
+                return
+
+            transcript_timestamp = datetime.now(timezone.utc)
+
+            logger.info(
+                "%s: %s: %s: %s",
+                caller_number,
+                transcript_timestamp.isoformat(),
+                speaker,
+                cleaned_text,
+            )
+
+            # Keep the CSV file as an optional backup.
+            if csv_writer:
+                csv_writer.writerow(
+                    [
+                        transcript_timestamp.isoformat(),
+                        caller_number,
+                        speaker,
+                        cleaned_text,
+                    ]
+                )
+
+                csv_file.flush()
+
+            try:
+                saved_transcript = await create_transcript_turn(
+                    call_id=call_id,
+                    timestamp=transcript_timestamp,
+                    caller_number=caller_number,
+                    speaker=speaker,
+                    text=cleaned_text,
+                )
+
+                if saved_transcript is None:
+                    logger.warning("Transcript service returned no saved record.")
+                    return
+
+                logger.info(
+                    "DATABASE SAVE SUCCESS | call_id=%s | speaker=%s | transcript_id=%s",
+                    saved_transcript["call_id"],
+                    saved_transcript["speaker"],
+                    saved_transcript["id"],
+                )
+
+            except Exception:
+                logger.exception(
+                    "Failed to save transcript to CockroachDB: "
+                    "call_id=%s speaker=%s",
+                    call_id,
+                    speaker,
+                )
+
         async def receive_from_twilio():
             """Receive audio data from Twilio and send it to the OpenAI Realtime API."""
-            nonlocal stream_sid, latest_media_timestamp, csv_file, csv_writer, caller_number, response_start_timestamp_twilio, last_assistant_item
+            nonlocal stream_sid, latest_media_timestamp, csv_file, csv_writer, caller_number, call_id, response_start_timestamp_twilio, last_assistant_item
             try:
                 async for message in websocket.iter_text():
                     data = json.loads(message)
@@ -126,6 +201,14 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         caller_number = data['start'].get('customParameters', {}).get('caller_number', 'unknown')
+                        call_id = await generate_call_id()
+                        logger.info(
+                                    "Generated live call ID: "
+                                    "twilio_stream=%s call_id=%s caller=%s",
+                                    stream_sid,
+                                    call_id,
+                                    caller_number,
+                        )
                         if VERBOSE:
                             logger.info(f"Incoming stream has started {stream_sid}")
                         response_start_timestamp_twilio = None
@@ -151,7 +234,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
-            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio
+            nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio, call_id
             try:
                 async for openai_message in openai_ws:
                     event = json.loads(openai_message)
@@ -178,10 +261,10 @@ async def handle_media_stream(websocket: WebSocket):
                         await send_mark(websocket, stream_sid)
 
                     if event.get('type') == 'conversation.item.input_audio_transcription.completed':
-                        log_conversation("caller", event.get('transcript', '').strip())
+                        await save_conversation_turn("caller", event.get('transcript', ''))
 
                     if event.get('type') == 'response.output_audio_transcript.done':
-                        log_conversation("assistant", event.get('transcript', '').strip())
+                        await save_conversation_turn("assistant", event.get('transcript', ''))
 
                     if event.get('type') == 'response.done':   
                         usage = event.get('response', {}).get('usage', {})

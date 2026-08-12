@@ -1,0 +1,75 @@
+call_id,timestamp,caller_number,speaker,text
+C001,2026-07-28T17:00:00,+14175551001,assistant,"Thanks for calling, this is the front desk — what can I help with?"
+C001,2026-07-28T17:00:18,+14175551001,caller,"Hi, I've got a leak in my attic, started last week during the storm."
+C001,2026-07-28T17:00:36,+14175551001,assistant,Sorry to hear that. Can I get your name and the address?
+C001,2026-07-28T17:00:54,+14175551001,caller,"Mark Reynolds, 412 Cascade Ave."
+C001,2026-07-28T17:01:12,+14175551001,assistant,Got it. What's the best time for someone to come look?
+C001,2026-07-28T17:01:30,+14175551001,caller,Weekday afternoons after 4pm work best.
+C002,2026-07-29T18:00:00,+14175551002,assistant,"Front desk, how can I help?"
+C002,2026-07-29T18:00:18,+14175551002,caller,A bunch of shingles blew off my roof yesterday.
+C002,2026-07-29T18:00:36,+14175551002,assistant,I can help with that. Name and address?
+C002,2026-07-29T18:00:54,+14175551002,caller,"Denise Coleman, 77 Maplewood Dr."
+C002,2026-07-29T18:01:12,+14175551002,assistant,When's a good time for an estimate?
+C002,2026-07-29T18:01:30,+14175551002,caller,Mornings before 11 work for me.
+C003,2026-08-01T17:30:00,+14175551002,assistant,"Front desk, how can I help?"
+C003,2026-08-01T17:30:18,+14175551002,caller,"Hi, it's Denise Coleman again, calling about my roof from earlier this week."
+C003,2026-08-01T17:30:36,+14175551002,assistant,"Yes, I see your call from Tuesday about the shingle damage. Let me check on the estimate status for you."
+C003,2026-08-01T17:31:00,+14175551002,caller,"Great, just wanted to make sure it wasn't forgotten."
+C004,2026-07-30T21:00:00,+14175551003,assistant,"Front desk, how can I help?"
+C004,2026-07-30T21:00:18,+14175551003,caller,"Hi, I'm looking into getting my roof replaced, it's pretty old."
+C004,2026-07-30T21:00:36,+14175551003,assistant,"Sure, can I get your name and address?"
+C004,2026-07-30T21:00:54,+14175551003,caller,"Steven Ortiz, 205 Fieldstone Ct."
+C004,2026-07-30T21:01:12,+14175551003,assistant,And when works for a visit?
+C004,2026-07-30T21:01:30,+14175551003,caller,Weekends are easiest for me.
+C005,2026-08-02T19:00:00,+14175551010,assistant,"Front desk, how can I help?"
+C005,2026-08-02T19:00:18,+14175551010,caller,"Hi, I'm calling on behalf of my husband Steven Ortiz, he called earlier this week about a roof replacement quote."
+C005,2026-08-02T19:00:36,+14175551010,assistant,"Yes, I have his call on file from Thursday. I can note you as an additional contact — what's your name?"
+C005,2026-08-02T19:01:00,+14175551010,caller,Priya Ortiz. Just wanted to confirm the weekend appointment still works.
+C006,2026-07-31T16:00:00,+14175551004,assistant,"Front desk, how can I help?"
+C006,2026-07-31T16:00:18,+14175551004,caller,"There's a big water stain on my ceiling, it's getting bigger."
+C006,2026-07-31T16:00:36,+14175551004,assistant,That sounds urgent — can I get your name and unit number?
+C006,2026-07-31T16:00:54,+14175551004,caller,"Angela Kim, 118 Birchwood Lane, Apartment 2B."
+C006,2026-07-31T16:01:12,+14175551004,assistant,Is the water actively dripping right now?
+C006,2026-07-31T16:01:30,+14175551004,caller,"Not dripping yet, just the stain spreading."
+C007,2026-07-31T16:45:00,+14175551005,assistant,"Front desk, how can I help?"
+C007,2026-07-31T16:45:18,+14175551005,caller,My gutter's hanging off after the storm last night.
+C007,2026-07-31T16:45:36,+14175551005,assistant,Got it — name and unit?
+C007,2026-07-31T16:45:54,+14175551005,caller,"Marcus Webb, same building as a neighbor I think, Apartment 4C, 118 Birchwood Lane."
+C007,2026-07-31T16:46:12,+14175551005,assistant,Thanks. When's a good time to take a look?
+C007,2026-07-31T16:46:30,+14175551005,caller,Evenings after 6 work best.
+C008,2026-08-04T06:15:00,+14175551006,assistant,"Front desk, how can I help?"
+C008,2026-08-04T06:15:12,+14175551006,caller,"Water is pouring through my ceiling right now, I need someone tonight!"
+C008,2026-08-04T06:15:24,+14175551006,assistant,"Understood, this is urgent. Name and address?"
+C008,2026-08-04T06:15:36,+14175551006,caller,"Latoya Brooks, 930 Crestline Drive."
+C008,2026-08-04T06:15:48,+14175551006,assistant,I'm flagging this as an emergency and getting someone to call you back within the hour.
+C008,2026-08-04T06:16:00,+14175551006,caller,"Please hurry, I've got buckets out but it's getting worse."
+C009,2026-07-28T22:00:00,+14175551007,assistant,"Front desk, how can I help?"
+C009,2026-07-28T22:00:18,+14175551007,caller,I'm selling my house and want the roof inspected first.
+C009,2026-07-28T22:00:36,+14175551007,assistant,"Sure thing, name and address?"
+C009,2026-07-28T22:00:54,+14175551007,caller,"Carlos Mendez, 56 Ridgeline Way."
+C010,2026-07-31T23:00:00,+14175551007,assistant,"Front desk, how can I help?"
+C010,2026-07-31T23:00:18,+14175551007,caller,"Hi, Carlos Mendez again, following up on the inspection I asked about."
+C010,2026-07-31T23:00:36,+14175551007,assistant,"Yes, I have that on file — let's get a date on the calendar."
+C010,2026-07-31T23:01:00,+14175551007,caller,Anytime next week works.
+C011,2026-08-06T00:00:00,+14175551007,assistant,"Front desk, how can I help?"
+C011,2026-08-06T00:00:18,+14175551007,caller,Just calling to confirm my inspection is still on for this week.
+C011,2026-08-06T00:00:36,+14175551007,assistant,"Yes, confirmed for Thursday morning."
+C011,2026-08-06T00:00:54,+14175551007,caller,"Perfect, thank you."
+C012,2026-07-30T00:00:00,+14175551008,assistant,"Front desk, how can I help?"
+C012,2026-07-30T00:00:18,+14175551008,caller,I'd like to get my gutters cleaned out.
+C012,2026-07-30T00:00:36,+14175551008,assistant,Sure — name and address?
+C012,2026-07-30T00:00:54,+14175551008,caller,"Whitney Foster, 14 Oakhaven Circle."
+C013,2026-08-17T17:00:00,+14175551008,assistant,"Front desk, how can I help?"
+C013,2026-08-17T17:00:18,+14175551008,caller,"This is Whitney Foster again — different issue this time, my skylight's leaking."
+C013,2026-08-17T17:00:36,+14175551008,assistant,"Got it, noted as a new issue. When works for a look?"
+C013,2026-08-17T17:01:00,+14175551008,caller,Weekday mornings still work best.
+C014,2026-08-04T18:00:00,+14175551009,assistant,"Front desk, how can I help?"
+C014,2026-08-04T18:00:18,+14175551009,caller,I just want a ballpark on what a new roof would cost.
+C014,2026-08-04T18:00:36,+14175551009,assistant,Happy to help — name and address for the estimate?
+C014,2026-08-04T18:00:54,+14175551009,caller,"Robin Chen, 88 Sunset Terrace."
+C015,2026-08-07T01:00:00,+14175551011,assistant,"Front desk, how can I help?"
+C015,2026-08-07T01:00:18,+14175551011,caller,"There's a gap around my chimney flashing, letting some moisture in."
+C015,2026-08-07T01:00:36,+14175551011,assistant,"Name and address, please?"
+C015,2026-08-07T01:00:54,+14175551011,caller,"Jason Pham, 301 Hillcrest Avenue."
+C015,2026-08-07T01:01:12,+14175551011,assistant,And when's a good time to come out?
+C015,2026-08-07T01:01:30,+14175551011,caller,Weekends only for me.
