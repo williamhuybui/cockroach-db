@@ -13,17 +13,7 @@ from twilio.twiml.voice_response import VoiceResponse, Connect
 from dotenv import load_dotenv
 from config import TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH, CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE
 from greeting import greeting_twilio, greeting_openai
-from database import configure_database
-# from embedding_service import configure_embedding_client, close_embedding_client
-
-from contextlib import asynccontextmanager
-
-from routers.health import router as health_router
-from routers.transcripts import router as transcripts_router
-from routers.customers import router as customers_router
-from routers.calls import router as calls_router
-from services.transcript_service import create_transcript_turn, generate_call_id
-
+from dashboard import register_dashboard
 load_dotenv()
 
 logging.basicConfig(
@@ -38,41 +28,9 @@ if not OPENAI_API_KEY:
     raise ValueError('Missing the OpenAI API key.')
 os.makedirs(CALL_LOGS_DIR, exist_ok=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("Missing DATABASE_URL.")
+app = FastAPI()
+register_dashboard(app)
 
-# Create the shared CockroachDB connection pool
-# The pool will be opened when FastAPI starts.
-database_pool = configure_database(DATABASE_URL)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Open the CockroachDB pool when FastAPI starts and close it when
-    FastAPI stops.
-    """
-
-    # Start the database connections before accepting requests.
-    await database_pool.open()
-
-    try:
-        # FastAPI serves requests while execution remains here.
-        yield
-    finally:
-        # Release database connections during shutdown or restart.
-        await database_pool.close()
-
-# Create the FastAPI application and attach the startup/shutdown process.
-app = FastAPI(lifespan=lifespan)
-
-# Register the new database-backed REST endpoints
-app.include_router(health_router)
-app.include_router(transcripts_router)
-app.include_router(customers_router)
-app.include_router(calls_router)
-
-# Basic application route
 @app.get("/", response_class=JSONResponse)
 async def index_page():
     return {"message": "Twilio Media Stream Server is running!"}
@@ -145,14 +103,13 @@ async def handle_media_stream(websocket: WebSocket):
         csv_file = None
         csv_writer = None
         caller_number = None
-        call_id = None
-        
-        def log_conversation(speaker, text):
+
+        def log_conversation(speaker, text, input_tokens="", output_tokens=""):
             if not text:
                 return
             logger.info(f"{caller_number}: {datetime.now().isoformat()}: {speaker}: {text}")
             if csv_writer:
-                csv_writer.writerow([datetime.now().isoformat(), caller_number, speaker, text])
+                csv_writer.writerow([datetime.now().isoformat(), caller_number, speaker, text, input_tokens, output_tokens])
                 csv_file.flush()
 
         async def save_conversation_turn(speaker: str, text: str):
@@ -262,7 +219,7 @@ async def handle_media_stream(websocket: WebSocket):
                         csv_path = os.path.join(CALL_LOGS_DIR, f"{stream_sid}_{safe_caller}.csv")
                         csv_file = open(csv_path, mode='w', newline='', encoding='utf-8')
                         csv_writer = csv.writer(csv_file)
-                        csv_writer.writerow(["timestamp", "caller_number", "speaker", "text"])
+                        csv_writer.writerow(["timestamp", "caller_number", "speaker", "text", "input_tokens", "output_tokens"])
                     elif data['event'] == 'mark':
                         if mark_queue:
                             mark_queue.pop(0)
@@ -308,6 +265,13 @@ async def handle_media_stream(websocket: WebSocket):
 
                     if event.get('type') == 'response.output_audio_transcript.done':
                         await save_conversation_turn("assistant", event.get('transcript', ''))
+
+                    if event.get('type') == 'response.done':   
+                        usage = event.get('response', {}).get('usage', {})
+                        input_tokens = usage.get('input_tokens', '')
+                        output_tokens = usage.get('output_tokens', '')
+                        if usage:
+                            log_conversation("usage", f"response tokens", input_tokens, output_tokens)
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
                     if event.get('type') == 'input_audio_buffer.speech_started':
