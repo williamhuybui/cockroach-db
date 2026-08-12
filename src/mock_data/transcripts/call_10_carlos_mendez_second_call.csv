@@ -1,0 +1,7 @@
+timestamp,caller_number,speaker,text
+2026-08-13T23:00:00,+14175551007,assistant,Hello! I'm a virtual assistant for The Front Desk That Never Sleeps. Is there something going on with your roof I can help with today?
+2026-08-13T23:00:18,+14175551007,caller,"Hi, this is Carlos Mendez again, just following up on the inspection I asked about earlier this week."
+2026-08-13T23:00:48,+14175551007,assistant,"Hi Carlos, yes, I do have that on file for 56 Ridgeline Way. Let's go ahead and get a date locked in — any preference?"
+2026-08-13T23:01:18,+14175551007,caller,"Anytime next week's fine for me, I'm pretty flexible on timing."
+2026-08-13T23:01:42,+14175551007,assistant,"Great, we'll aim for sometime next week and confirm the exact day shortly. Anything else?"
+2026-08-13T23:02:00,+14175551007,caller,"No, that's all, thanks."

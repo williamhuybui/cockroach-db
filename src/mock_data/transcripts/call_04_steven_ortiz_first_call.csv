@@ -1,0 +1,19 @@
+timestamp,caller_number,speaker,text
+2026-08-12T21:00:00,+14175551003,assistant,Hello! I'm a virtual assistant for The Front Desk That Never Sleeps. Is there something going on with your roof I can help with today?
+2026-08-12T21:00:18,+14175551003,caller,"Hi, so, I think it's about time to replace my roof, it's getting up there in age and I'd rather deal with it now than wait for a problem."
+2026-08-12T21:00:48,+14175551003,assistant,That's a smart move. Could I get your full name?
+2026-08-12T21:01:00,+14175551003,caller,Steven Ortiz.
+2026-08-12T21:01:18,+14175551003,assistant,"Thanks for that, Steven. Email address?"
+2026-08-12T21:01:36,+14175551003,caller,"Yeah, it's steven, dot, ortiz, at yahoo dot com."
+2026-08-12T21:02:00,+14175551003,assistant,"Got it, steven.ortiz@yahoo.com. And the property address?"
+2026-08-12T21:02:18,+14175551003,caller,205 Fieldstone Court.
+2026-08-12T21:02:36,+14175551003,assistant,"Thanks. Unit or apartment number, or single-family?"
+2026-08-12T21:02:48,+14175551003,caller,Single-family home.
+2026-08-12T21:03:06,+14175551003,assistant,"Got it. How old is the current roof, and are you seeing any active issues, or is this more preventative?"
+2026-08-12T21:03:36,+14175551003,caller,"It's about 20 years old at this point, no active leaks right now, I just want to get ahead of it before something actually goes wrong."
+2026-08-12T21:04:06,+14175551003,caller,"Also, does insurance usually cover part of a replacement like this, or is that a totally separate conversation I need to have?"
+2026-08-12T21:04:42,+14175551003,assistant,"That's something we can help document for a claim, though I'm not able to give specific insurance or legal advice myself — that's a conversation we can go into more when we're out for the estimate. When works for a visit?"
+2026-08-12T21:05:06,+14175551003,caller,"Weekends are easiest for me, honestly."
+2026-08-12T21:05:24,+14175551003,assistant,"So we've got Steven Ortiz, 205 Fieldstone Court, weekends. Anything else before we wrap up?"
+2026-08-12T21:05:42,+14175551003,caller,"No, I think that covers it."
+2026-08-12T21:05:54,+14175551003,assistant,"Thanks for calling, Steven — take care!"
