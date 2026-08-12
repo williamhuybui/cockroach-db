@@ -16,6 +16,10 @@ Currently the repo holds pitch/ideation docs, meeting notes, and a placeholder F
 - `meeting/` — meeting notes (`MM-DD-YYYY.md`) and `role-responsibility.md`, which defines team roles and the driver/passenger ownership model per focus area (PM, ideation, frontend, backend, infra, research, presentation).
 
 
+## Code style
+
+- Every source file should start with a module-level docstring summarizing what the file does.
+
 ## Team context
 
 Roles are defined in `meeting/role-responsibility.md`: Huy (Captain/Fullstack), Hieu (Solution Architect/Data Admin), Ha (R&D Lead), Tri (PM/Coordinator). When updating meeting notes, follow the existing format in `meeting/07-17-2026.md` (agenda with time-boxed sections, per-person idea summaries linking to their `ideation/` doc).

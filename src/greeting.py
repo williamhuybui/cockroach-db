@@ -6,17 +6,15 @@
 def greeting_twilio(response):
     """Add the hardcoded <Say> greeting lines to a TwiML VoiceResponse."""
     response.say(
-        "Hey, welcome to The Front Desk That Never Sleeps.",
+        "Thanks for calling our roofing team. Just so you know, I'm an AI "
+        "assistant, and this call is recorded.",
         voice="Google.en-US-Chirp3-HD-Aoede"
     )
     response.pause(length=1)
     response.say(
-        "Anh Huy Bùi tạo ra mình. Cho nên mình có nói bậy là tại ảnh.",
-        voice="Google.vi-VN-Chirp3-HD-Aoede"
-    )
-    response.pause(length=1)
-    response.say(
-        "Go ahead, ask me anything!"
+        "I can't come out and fix anything myself, but I can take down what's "
+        "going on and your address so we can get a technician scheduled to come "
+        "take a look. What's going on with your roof?"
     )
 
 # 2) OpenAI Realtime API greeting
@@ -25,4 +23,9 @@ def greeting_twilio(response):
 def greeting_openai():
     """Instruction text used to make the AI greet the caller first, once the
     media stream connects (see send_initial_conversation_item in main.py)."""
-    return "Say: Hello There, I am an AI Assistant."
+    return (
+        "Say: Thanks for calling our roofing team. I'm an AI assistant, and this "
+        "call is recorded. I can't fix anything myself, but I can take down "
+        "what's going on and get a technician scheduled to come take a look — "
+        "what's going on with your roof?"
+    )

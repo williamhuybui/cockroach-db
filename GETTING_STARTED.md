@@ -43,6 +43,15 @@ Create `.env` in the repo root with your OpenAI key:
 OPENAI_API_KEY=your-key-here
 ```
 
+Optionally, add your Twilio Account SID and Auth Token (from the [Twilio Console](https://console.twilio.com/)) so the AI can hang up the call itself when it's done:
+
+```
+TWILIO_ACCOUNT_SID=your-account-sid
+TWILIO_AUTH_TOKEN=your-auth-token
+```
+
+Without these, calls still work — the AI just can't end the call on its own; it relies on the caller hanging up.
+
 Other settings (voice, greeting mode, system prompt, port, etc.) live in `src/config.py`.
 
 ## Every time you develop
@@ -59,7 +68,7 @@ venv\Scripts\activate         # Windows
 ### 2. Start ngrok
 
 ```bash
-ngrok http 5050
+ngrok http 5051
 ```
 
 Copy the `https://<subdomain>.ngrok.app` forwarding URL — you'll need it in the next step.

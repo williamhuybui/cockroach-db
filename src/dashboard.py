@@ -243,6 +243,34 @@ def _client_record(clients, phone):
     }
 
 
+def get_caller_context(caller_number):
+    """Known info about a caller for the AI's system prompt: their saved name (if
+    any) and a short summary of their most recent previous call, so a repeat caller
+    can be greeted by name and doesn't have to repeat themselves."""
+    clients = _load_clients()
+    record = _client_record(clients, caller_number)
+
+    previous_calls = [c for c in list_conversations() if c["caller_number"] == caller_number]
+    last_call = None
+    if previous_calls:
+        # list_conversations() is already sorted newest-first.
+        latest = previous_calls[0]
+        notes = _load_notes().get(latest["id"], [])
+        last_call = {
+            "date": latest["start_time"],
+            "preview": latest["preview"],
+            "topics": latest["topics"],
+            "notes": [n["text"] for n in notes],
+        }
+
+    return {
+        "name": record["name"],
+        "address": record["address"],
+        "call_count": len(previous_calls),
+        "last_call": last_call,
+    }
+
+
 @router.get("/api/conversations")
 async def api_list_conversations():
     return [{k: v for k, v in c.items() if k != "messages"} for c in list_conversations()]
