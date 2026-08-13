@@ -1,19 +1,20 @@
 import os
-import csv
 import json
 import base64
 import asyncio
 import logging
 import websockets
 from datetime import datetime, timezone
+from pathlib import Path
 from fastapi import FastAPI, WebSocket, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from dotenv import load_dotenv
-from config import TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH, CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE
+from config import TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE
 from greeting import greeting_twilio, greeting_openai
 from dashboard import register_dashboard
+from database import execute_sql, generate_call_id, save_transcript_turn
 load_dotenv()
 
 logging.basicConfig(
@@ -26,14 +27,38 @@ logger = logging.getLogger("voice_assistant")
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 if not OPENAI_API_KEY:
     raise ValueError('Missing the OpenAI API key.')
-os.makedirs(CALL_LOGS_DIR, exist_ok=True)
+
+# CockroachDB is the only transcript store now — without it a call still
+# connects and works, but nothing about it is recorded.
+if not os.getenv('DATABASE_URL'):
+    logger.warning("DATABASE_URL is not set — calls will work but NO transcripts will be recorded.")
 
 app = FastAPI()
 register_dashboard(app)
 
-@app.get("/", response_class=JSONResponse)
-async def index_page():
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+@app.get("/", response_class=HTMLResponse)
+async def landing_page():
+    """Public marketing front page — see /dashboard for the internal command center."""
+    return FileResponse(str(STATIC_DIR / "landing.html"))
+
+@app.get("/status", response_class=JSONResponse)
+async def status_page():
     return {"message": "Twilio Media Stream Server is running!"}
+
+@app.get("/health", response_class=JSONResponse)
+async def health():
+    """Confirm the app can query CockroachDB."""
+    try:
+        await asyncio.to_thread(execute_sql, "SELECT 1")
+    except Exception:
+        logger.exception("CockroachDB health check failed.")
+        return JSONResponse(
+            status_code=503,
+            content={"application": "degraded", "database": "disconnected"},
+        )
+    return {"application": "healthy", "database": "connected"}
 
 # Twilio incoming-call route
 @app.api_route("/incoming-call", methods=["GET", "POST"])
@@ -100,38 +125,22 @@ async def handle_media_stream(websocket: WebSocket):
         last_assistant_item = None
         mark_queue = []
         response_start_timestamp_twilio = None
-        csv_file = None
-        csv_writer = None
         caller_number = None
+        call_id = None
 
         def log_conversation(speaker, text, input_tokens="", output_tokens=""):
             if not text:
                 return
             logger.info(f"{caller_number}: {datetime.now().isoformat()}: {speaker}: {text}")
-            if csv_writer:
-                csv_writer.writerow([datetime.now().isoformat(), caller_number, speaker, text, input_tokens, output_tokens])
-                csv_file.flush()
 
         async def save_conversation_turn(speaker: str, text: str):
             """
-            Save one completed caller or assistant transcript turn.
+            Save one completed caller or assistant transcript turn to CockroachDB.
             """
 
             cleaned_text = text.strip()
 
             if not cleaned_text:
-                return
-
-            if call_id is None:
-                logger.error(
-                    "Cannot save transcript because call_id has not been generated."
-                )
-                return
-
-            if not caller_number or caller_number == "unknown":
-                logger.error(
-                    "Cannot save transcript because caller_number is missing."
-                )
                 return
 
             transcript_timestamp = datetime.now(timezone.utc)
@@ -144,31 +153,29 @@ async def handle_media_stream(websocket: WebSocket):
                 cleaned_text,
             )
 
-            # Keep the CSV file as an optional backup.
-            if csv_writer:
-                csv_writer.writerow(
-                    [
-                        transcript_timestamp.isoformat(),
-                        caller_number,
-                        speaker,
-                        cleaned_text,
-                    ]
+            if call_id is None:
+                logger.error(
+                    "Not saving to CockroachDB: no call_id was generated for this call."
                 )
+                return
 
-                csv_file.flush()
+            if not caller_number or caller_number == "unknown":
+                logger.error(
+                    "Not saving to CockroachDB: caller_number is missing."
+                )
+                return
 
             try:
-                saved_transcript = await create_transcript_turn(
-                    call_id=call_id,
-                    timestamp=transcript_timestamp,
-                    caller_number=caller_number,
-                    speaker=speaker,
-                    text=cleaned_text,
+                # to_thread keeps the blocking DB insert off the event loop —
+                # otherwise it stalls the audio streaming for the whole call.
+                saved_transcript = await asyncio.to_thread(
+                    save_transcript_turn,
+                    call_id,
+                    transcript_timestamp,
+                    caller_number,
+                    speaker,
+                    cleaned_text,
                 )
-
-                if saved_transcript is None:
-                    logger.warning("Transcript service returned no saved record.")
-                    return
 
                 logger.info(
                     "DATABASE SAVE SUCCESS | call_id=%s | speaker=%s | transcript_id=%s",
@@ -187,7 +194,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         async def receive_from_twilio():
             """Receive audio data from Twilio and send it to the OpenAI Realtime API."""
-            nonlocal stream_sid, latest_media_timestamp, csv_file, csv_writer, caller_number, call_id, response_start_timestamp_twilio, last_assistant_item
+            nonlocal stream_sid, latest_media_timestamp, caller_number, call_id, response_start_timestamp_twilio, last_assistant_item
             try:
                 async for message in websocket.iter_text():
                     data = json.loads(message)
@@ -201,25 +208,30 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         caller_number = data['start'].get('customParameters', {}).get('caller_number', 'unknown')
-                        call_id = await generate_call_id()
-                        logger.info(
-                                    "Generated live call ID: "
-                                    "twilio_stream=%s call_id=%s caller=%s",
-                                    stream_sid,
-                                    call_id,
-                                    caller_number,
-                        )
+                        try:
+                            call_id = await asyncio.to_thread(generate_call_id)
+                            logger.info(
+                                        "Generated live call ID: "
+                                        "twilio_stream=%s call_id=%s caller=%s",
+                                        stream_sid,
+                                        call_id,
+                                        caller_number,
+                            )
+                        except Exception:
+                            # Don't let a CockroachDB hiccup take down the call. The
+                            # conversation still works; its transcript just won't be
+                            # recorded (see save_conversation_turn).
+                            logger.exception(
+                                "Failed to generate call_id from CockroachDB for stream %s. "
+                                "This call's transcript will NOT be recorded.",
+                                stream_sid,
+                            )
+                            call_id = None
                         if VERBOSE:
                             logger.info(f"Incoming stream has started {stream_sid}")
                         response_start_timestamp_twilio = None
                         latest_media_timestamp = 0
                         last_assistant_item = None
-
-                        safe_caller = caller_number.replace('+', '')
-                        csv_path = os.path.join(CALL_LOGS_DIR, f"{stream_sid}_{safe_caller}.csv")
-                        csv_file = open(csv_path, mode='w', newline='', encoding='utf-8')
-                        csv_writer = csv.writer(csv_file)
-                        csv_writer.writerow(["timestamp", "caller_number", "speaker", "text", "input_tokens", "output_tokens"])
                     elif data['event'] == 'mark':
                         if mark_queue:
                             mark_queue.pop(0)
@@ -228,9 +240,6 @@ async def handle_media_stream(websocket: WebSocket):
                     logger.info("Client disconnected.")
                 if openai_ws.state.name == 'OPEN':
                     await openai_ws.close()
-            finally:
-                if csv_file:
-                    csv_file.close()
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""

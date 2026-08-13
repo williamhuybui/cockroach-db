@@ -1,9 +1,0 @@
-timestamp,caller_number,speaker,text
-2026-08-01T10:57:48.696598,+17372029999,caller,Okay.
-2026-08-01T10:57:49.122127,+17372029999,assistant,"Hola, ¿qué tal? ¿En qué te puedo ayudar hoy?"
-2026-08-01T10:57:57.774913,+17372029999,caller,"Hello, can you hear me?"
-2026-08-01T10:57:57.832795,+17372029999,assistant,"¡Hola! Sí, te escucho claramente. ¿Cómo estás?"
-2026-08-01T10:57:59.600722,+17372029999,assistant,"Sí, te escucho perfecto."
-2026-08-01T10:58:00.250602,+17372029999,caller,and to help the organ.
-2026-08-01T10:58:00.572479,+17372029999,caller,Bye.
-2026-08-01T10:58:00.589922,+17372029999,assistant,"Sí, te escucho claramente."

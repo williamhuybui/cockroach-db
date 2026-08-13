@@ -31,6 +31,8 @@ button, input {
   color: inherit;
 }
 
+a { color: inherit; text-decoration: none; }
+
 /* ---------- shell ---------- */
 
 .app-shell {
@@ -69,6 +71,17 @@ button, input {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+.brand:hover .brand-sub { color: var(--text-secondary); }
+
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+
+.home-link {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.home-link:hover { color: var(--text-primary); }
 
 .clock {
   font-size: 13px;
@@ -193,12 +206,20 @@ button, input {
 
 .action-items-body {
   padding: 0 16px 14px;
+}
+
+.action-items-card.collapsed .action-items-body { display: none; }
+
+/* The grid needs to be on the list itself (#action-items-list), not on
+   .action-items-body — JS renders every .action-item-card as a child of
+   the list, and .action-items-body has only two children (the list and
+   the empty-state message), so putting the grid there just gave the list
+   one wide grid cell and left the rest of the row empty. */
+#action-items-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 10px;
 }
-
-.action-items-card.collapsed .action-items-body { display: none; }
 
 .action-item-card {
   background: var(--surface-2);
@@ -543,6 +564,23 @@ button, input {
 }
 
 .caller-menu button:hover { background: var(--surface-1); }
+.caller-menu button.danger { color: var(--critical); }
+
+.msg-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 3px;
+  margin-left: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.msg:hover .msg-delete { opacity: 1; }
+.msg-delete:hover { color: var(--critical); background: var(--surface-2); }
 
 .caller-edit-form {
   display: flex;

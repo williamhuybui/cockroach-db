@@ -1,8 +1,0 @@
-timestamp,caller_number,speaker,text
-2026-08-19T00:00:00,+14175551007,assistant,Hello! I'm a virtual assistant for The Front Desk That Never Sleeps. Is there something going on with your roof I can help with today?
-2026-08-19T00:00:18,+14175551007,caller,"Hey, just calling to confirm the inspection's still on for this week."
-2026-08-19T00:00:42,+14175551007,assistant,"Yes, that's confirmed for Thursday morning. Does that still work on your end?"
-2026-08-19T00:01:12,+14175551007,caller,"Thursday morning works, or, actually, Friday afternoon could work too if morning ends up falling through for some reason."
-2026-08-19T00:01:42,+14175551007,assistant,"Got it, I'll note Thursday morning as the primary and Friday afternoon as a backup in case anything shifts. Anything else?"
-2026-08-19T00:02:00,+14175551007,caller,"No, that's it, appreciate it."
-2026-08-19T00:02:12,+14175551007,assistant,"You're welcome, Carlos — see you then!"

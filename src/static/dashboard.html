@@ -9,8 +9,9 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand"><span class="brand-icon">☎</span> Front Desk <span class="brand-sub">Command Center</span></div>
+      <a class="brand" href="/" title="Back to homepage"><span class="brand-icon">☎</span> Front Desk <span class="brand-sub">Command Center</span></a>
       <div class="topbar-right">
+        <a class="home-link" href="/">← Home</a>
         <span id="clock" class="clock"></span>
       </div>
     </header>
@@ -98,6 +99,7 @@
             <button class="caller-menu-btn" id="caller-menu-btn" aria-label="Caller options">⋮</button>
             <div class="caller-menu" id="caller-menu" hidden>
               <button type="button" id="caller-menu-edit">Edit name</button>
+              <button type="button" class="danger" id="caller-menu-delete">Delete transcript</button>
             </div>
           </div>
         </div>

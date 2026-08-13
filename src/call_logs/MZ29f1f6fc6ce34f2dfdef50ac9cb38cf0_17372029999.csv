@@ -1,8 +1,0 @@
-timestamp,caller_number,speaker,text
-2026-08-01T11:46:11.767259,+17372029999,assistant,"Hello there! I am an AI voice assistant powered by Twilio and the OpenAI Realtime API. You can ask me for facts, jokes, or anything you can imagine. How can I help you?"
-2026-08-01T11:46:23.669841,+17372029999,caller,Bye-bye.
-2026-08-01T11:46:24.112974,+17372029999,assistant,"Hello there! I am an AI voice assistant powered by Twilio and the OpenAI Realtime API. You can ask me for facts, jokes, or anything you can imagine. How can I help you?"
-2026-08-01T11:46:35.454795,+17372029999,assistant,Great! Let’s dive in. What’s on your mind today?
-2026-08-01T11:46:35.760868,+17372029999,caller,Bye.
-2026-08-01T11:46:37.372840,+17372029999,caller,Aloha.
-2026-08-01T11:46:37.397015,+17372029999,assistant,Hi there! It’s great to talk with you. What can I do for you today?

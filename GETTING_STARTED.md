@@ -88,7 +88,7 @@ Call your Twilio number. After the greeting, talk to the AI assistant — it res
 
 ---
 
-Ran into a problem? See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
+
 
 ** Adding tiktoken :
 

@@ -171,27 +171,33 @@
       fetchJSON('/api/conversations'),
       fetchJSON('/api/callers/names'),
     ]);
-    // pull todo counts in parallel so the "needs follow-up" tile and future
-    // per-row indicators have the data without a second round-trip per click
-    await Promise.all(convos.map(async (c) => {
-      try {
-        const todos = await fetchJSON(`/api/conversations/${encodeURIComponent(c.id)}/todos`);
-        c._todoCount = todos.length;
-      } catch {
-        c._todoCount = 0;
-      }
-    }));
     state.conversations = convos;
     state.callerNames = names;
+
+    // /api/conversations already includes each call's todos, derived from the
+    // same rows it read — so no follow-up requests. This used to fire one
+    // request per conversation (31 in total, ~19s) before rendering anything.
+    convos.forEach((c) => { c._todoCount = (c.todos || []).length; });
+
+    const groups = convos
+      .filter((c) => c._todoCount > 0)
+      .map((c) => ({
+        conversation_id: c.id,
+        caller_number: c.caller_number,
+        start_time: c.start_time,
+        todos: c.todos,
+      }));
+
     renderStatTiles();
     renderTable(convos);
-    renderActionItems();
+    renderActionItems(groups);
   }
 
   // ---------- action items (to-do, lives inside the Calls tab) ----------
 
-  async function renderActionItems() {
-    const groups = await fetchJSON('/api/todos');
+  async function renderActionItems(preloadedGroups) {
+    // loadConversations() already fetched these — don't ask again.
+    const groups = preloadedGroups || await fetchJSON('/api/todos');
     const totalItems = groups.reduce((sum, g) => sum + g.todos.length, 0);
     document.getElementById('action-items-count').textContent = totalItems ? `(${totalItems})` : '';
 
@@ -303,6 +309,16 @@
       input.value = state.callerNames[state.currentCallerNumber] || '';
       form.hidden = false;
       input.focus();
+    });
+
+    document.getElementById('caller-menu-delete').addEventListener('click', async () => {
+      document.getElementById('caller-menu').hidden = true;
+      if (!state.currentId) return;
+      if (!confirm(`Delete the entire transcript for call ${state.currentId}? This permanently removes every turn from the database.`)) return;
+
+      await fetchJSON(`/api/conversations/${encodeURIComponent(state.currentId)}`, { method: 'DELETE' });
+      closeDrawer();
+      await loadConversations();
     });
 
     document.getElementById('caller-edit-cancel').addEventListener('click', () => {
@@ -432,12 +448,36 @@
 
   function transcriptHtml(messages) {
     return messages.map((m) => `
-      <div class="msg ${m.speaker}">
-        <div class="who">${m.speaker === 'caller' ? 'Caller' : 'Assistant'} · ${formatTimestamp(m.timestamp)}</div>
+      <div class="msg ${m.speaker}" data-msg-id="${escapeHtml(m.id || '')}">
+        <div class="who">
+          ${m.speaker === 'caller' ? 'Caller' : 'Assistant'} · ${formatTimestamp(m.timestamp)}
+          ${m.id ? '<button type="button" class="msg-delete" title="Delete this turn">✕</button>' : ''}
+        </div>
         <div class="bubble">${escapeHtml(m.text)}</div>
       </div>
     `).join('') || '<p class="chat-hint">No transcript recorded for this call.</p>';
   }
+
+  // Delete one transcript turn. Delegated, so it covers both the drawer and
+  // the clients-view transcript pane.
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.msg-delete');
+    if (!btn) return;
+    const msg = btn.closest('.msg');
+    // The drawer and the clients view each track their own open conversation.
+    const conversationId = msg?.closest('#pane-c')
+      ? clientsState.selectedConversationId
+      : state.currentId;
+    if (!msg || !conversationId) return;
+    if (!confirm('Delete this transcript turn? This removes it from the database.')) return;
+
+    await fetchJSON(
+      `/api/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(msg.dataset.msgId)}`,
+      { method: 'DELETE' },
+    );
+    msg.remove();
+    await loadConversations();
+  });
 
   function appendChatQuery(thread, message) {
     thread.insertAdjacentHTML('beforeend', `<div class="chat-bubble query">"${escapeHtml(message)}"</div>`);
@@ -772,6 +812,11 @@
     setupDrawer();
     setupActionItems();
     setupClientsView();
-    loadConversations();
+    // Surface load failures instead of silently leaving an empty dashboard.
+    loadConversations().catch((err) => {
+      const empty = document.getElementById('calls-empty');
+      empty.textContent = `Couldn't load calls: ${err.message}. Is the server running and CockroachDB reachable?`;
+      empty.hidden = false;
+    });
   });
 })();
