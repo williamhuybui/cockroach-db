@@ -48,6 +48,12 @@ WRAP_UP_AT_PERCENT = 0.85
 MAX_CALL_DURATION_SECONDS = 300
 HARD_CUTOFF_GRACE_SECONDS = 20 
 
+# Post-call structured extraction (separate from the live conversation
+# model — runs once the call ends, over the saved transcript).
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_REQUEST_TIMEOUT_SECONDS = 20
+
 # Prompt
 COMPANY_NAME = "AM Construction Services"
  

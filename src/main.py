@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from api_models import CallCreate
 from routers.calls import insert_call
 from routers.customers import get_customer_memory
+from post_call_extraction import extract_call_summary
 
 load_dotenv()
 
@@ -52,7 +53,7 @@ if not DATABASE_URL:
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
+TWILIO_FROM_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 
 if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER:
     configure_sms_client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER)
@@ -438,11 +439,6 @@ async def handle_media_stream(websocket: WebSocket):
                                     ending_call = True
                                     await send_tool_result(openai_ws, tool_call_id, {"status": "ending_call"})
 
-                                elif tool_name == 'save_call_summary':
-                                    logger.info("Agent requested save_call_summary: %s", tool_args)
-                                    await save_structured_call(call_id, caller_number, tool_args)
-                                    await send_tool_result(openai_ws, tool_call_id, {"status": "saved"})
-
                             await openai_ws.send(json.dumps({"type": "response.create"}))
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
@@ -515,6 +511,19 @@ async def handle_media_stream(websocket: WebSocket):
                 mark_queue.append('responsePart')
 
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
+
+        # Post-call structured extraction — runs after the live conversation
+        # has ended, using a separate model (see post_call_extraction.py)
+        # instead of having the live OpenAI agent extract it itself mid-call.
+        if call_id and caller_number and caller_number != "unknown":
+            try:
+                extracted = await extract_call_summary(call_id)
+                if extracted:
+                    await save_structured_call(call_id, caller_number, extracted)
+            except Exception:
+                logger.exception(
+                    "Post-call extraction/save failed for call_id=%s", call_id
+                )
 
 async def send_initial_conversation_item(openai_ws, greeting_text):
     """Send initial conversation item if AI talks first."""
@@ -716,8 +725,8 @@ async def send_tool_result(openai_ws, tool_call_id, result: dict):
 
 async def save_structured_call(call_id, caller_number, arguments):
     """
-    Build a CallCreate from the agent's save_call_summary tool call and
-    insert it the same way POST /calls does.
+    Build a CallCreate from the post-call extraction result (see
+    post_call_extraction.py) and insert it the same way POST /calls does.
     """
     try:
         call = CallCreate(
@@ -727,7 +736,7 @@ async def save_structured_call(call_id, caller_number, arguments):
         )
     except ValidationError:
         logger.exception(
-            "save_call_summary arguments failed validation: call_id=%s args=%s",
+            "Post-call extraction result failed validation: call_id=%s args=%s",
             call_id, arguments,
         )
         return
@@ -791,72 +800,6 @@ async def initialize_session(openai_ws):
                             }
                         },
                         "required": ["reason"],
-                    },
-                },
-                {
-                    "type": "function",
-                    "name": "save_call_summary",
-                    "description": (
-                        "Save a structured summary of this call for the business to "
-                        "review. Call this once, right before end_call, with whatever "
-                        "the caller was willing to share — it's fine to leave fields "
-                        "out if unknown."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "description": "Caller's full name, or the property owner's name if calling on someone else's behalf.",
-                            },
-                            "email": {"type": "string", "description": "Caller's email, if provided."},
-                            "address": {"type": "string", "description": "Property address needing service."},
-                            "problem": {
-                                "type": "string",
-                                "description": "Short label, e.g. 'Roof leak', 'Missing shingles', 'Storm damage'.",
-                            },
-                            "problem_detail": {
-                                "type": "string",
-                                "description": "More specific detail: where, how long, likely cause.",
-                            },
-                            "availability": {"type": "string", "description": "Days/times that work for a visit or callback."},
-                            "urgency": {
-                                "type": "string",
-                                "enum": ["Low", "Medium", "High", "Emergency"],
-                            },
-                            "calling_on_behalf_of": {
-                                "type": "string",
-                                "description": "Set only if the caller is calling on someone else's behalf.",
-                            },
-                            "summary": {
-                                "type": "string",
-                                "description": (
-                                    "1-3 sentence plain-language summary for the business "
-                                    "owner: what the caller needed and what was agreed."
-                                ),
-                            },
-                            "tags": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": (
-                                    "Short topic labels for this call, e.g. "
-                                    "'schedule', 'quote', 'follow-up', "
-                                    "'emergency', 'complaint'."
-                                ),
-                            },
-                            "todo_items": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": (
-                                    "Concrete next steps the business still "
-                                    "needs to do before this request is fully "
-                                    "resolved, e.g. 'Call back to confirm "
-                                    "Tuesday 2pm appointment', 'Email the "
-                                    "estimate'. Leave empty if nothing is left."
-                                ),
-                            },
-                        },
-                        "required": ["summary", "urgency"],
                     },
                 },
             ],

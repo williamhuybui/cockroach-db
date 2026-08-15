@@ -59,6 +59,20 @@ def save_transcript_turn(call_id, timestamp, caller_number, speaker, text):
     return rows[0]
 
 
+def get_transcript_for_call(call_id):
+    """Return every transcript turn for one call, oldest first — used by
+    post_call_extraction.py to hand the full conversation to Groq."""
+    return execute_sql(
+        """
+        SELECT speaker, text, "timestamp"
+        FROM transcripts
+        WHERE call_id = %s
+        ORDER BY "timestamp" ASC
+        """,
+        (call_id,),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Async-compatible wrapper around the sync connection above.
 #
