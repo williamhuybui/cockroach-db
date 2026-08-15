@@ -28,3 +28,7 @@ caller_names.json
 notes.json
 clients.json
 tmp
+
+# One-off scripts used to fix legacy mock data (not part of app runtime)
+scripts/export_mock_data.py
+scripts/reconcile_mock_data.py
