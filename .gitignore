@@ -3,13 +3,28 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-
 # Environment variables
 .env
-
+.env.*
 # IDE
 .vscode/
 .idea/
 .DS_Store
 .claude
-src/call_logs/*.csv
+# Local application logs and runtime files
+call_logs/
+*.log
+tmp/
+# Certificates and private keys
+*.crt
+*.key
+*.pem
+certs/
+cockroach.zip
+ccloud.zip
+# Uploaded caller files
+uploads/
+caller_names.json
+notes.json
+clients.json
+tmp

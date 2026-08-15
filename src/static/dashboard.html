@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Front Desk — Command Center</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" title="Back to homepage"><span class="brand-icon">☎</span> Front Desk <span class="brand-sub">Command Center</span></a>
+      <div class="topbar-right">
+        <a class="home-link" href="/">← Home</a>
+        <span id="clock" class="clock"></span>
+      </div>
+    </header>
+
+    <nav class="sidebar">
+      <button class="nav-item active" data-view="calls">Calls</button>
+      <button class="nav-item" data-view="clients">Clients</button>
+    </nav>
+
+    <main class="content">
+      <section id="view-calls" class="view active">
+        <div class="stat-tiles" id="stat-tiles"></div>
+
+        <div class="action-items-card">
+          <button class="action-items-toggle" id="action-items-toggle" type="button">
+            <span class="caret">▾</span> Action items <span class="action-items-count" id="action-items-count"></span>
+          </button>
+          <div class="action-items-body" id="action-items-body">
+            <div id="action-items-list"></div>
+            <p class="empty-state" id="action-items-empty" hidden>Nothing needs follow-up right now.</p>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table class="calls-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Caller</th>
+                <th>Msgs</th>
+                <th>Duration</th>
+                <th>Topics</th>
+              </tr>
+              <tr class="filter-row">
+                <th><input data-filter="time" placeholder="Filter time…"></th>
+                <th><input data-filter="caller_number" placeholder="Filter caller…"></th>
+                <th><input data-filter="message_count" placeholder="Min msgs" inputmode="numeric"></th>
+                <th><input data-filter="duration_seconds" placeholder="Min sec" inputmode="numeric"></th>
+                <th><input data-filter="topics" placeholder="Filter topic…"></th>
+              </tr>
+            </thead>
+            <tbody id="calls-tbody"></tbody>
+          </table>
+          <p class="empty-state" id="calls-empty" hidden>No calls logged yet.</p>
+        </div>
+      </section>
+
+      <section id="view-clients" class="view">
+        <div class="clients-shell">
+          <div class="clients-pane pane-a">
+            <div class="pane-header">
+              <span>Clients</span>
+              <button type="button" id="add-client-btn" title="Add client">+</button>
+            </div>
+            <div class="add-client-form" id="add-client-form" hidden>
+              <input type="text" id="add-client-phone" placeholder="Phone, e.g. +15551234567">
+              <input type="text" id="add-client-name" placeholder="Name">
+              <div class="add-client-actions">
+                <button type="button" class="save-btn" id="add-client-save">Add</button>
+                <button type="button" class="cancel-btn" id="add-client-cancel">Cancel</button>
+              </div>
+            </div>
+            <div class="client-list" id="client-list"></div>
+          </div>
+
+          <div class="clients-pane pane-b" id="pane-b">
+            <p class="chat-hint pane-placeholder">Select a client on the left.</p>
+          </div>
+
+          <div class="clients-pane pane-c" id="pane-c">
+            <p class="chat-hint pane-placeholder">Select a conversation to view it here.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div class="drawer-header-main">
+        <div class="drawer-caller-row">
+          <span class="drawer-caller" id="drawer-caller">—</span>
+          <div class="caller-menu-wrap">
+            <button class="caller-menu-btn" id="caller-menu-btn" aria-label="Caller options">⋮</button>
+            <div class="caller-menu" id="caller-menu" hidden>
+              <button type="button" id="caller-menu-edit">Edit name</button>
+              <button type="button" class="danger" id="caller-menu-delete">Delete transcript</button>
+            </div>
+          </div>
+        </div>
+        <div class="drawer-caller-phone" id="drawer-caller-phone" hidden></div>
+        <div class="caller-edit-form" id="caller-edit-form" hidden>
+          <input type="text" id="caller-edit-input" placeholder="Caller name" autocomplete="off">
+          <button type="button" class="save-btn" id="caller-edit-save">Save</button>
+          <button type="button" class="cancel-btn" id="caller-edit-cancel">Cancel</button>
+        </div>
+        <div class="drawer-time" id="drawer-time">—</div>
+      </div>
+      <div class="drawer-header-actions">
+        <button class="drawer-expand" id="drawer-expand" aria-label="Expand to full screen" title="Expand to full screen">⤢</button>
+        <button class="drawer-close" id="drawer-close" aria-label="Close">✕</button>
+      </div>
+    </div>
+
+    <div class="drawer-tabs">
+      <button class="drawer-tab active" data-tab="transcript">Transcript</button>
+      <button class="drawer-tab" data-tab="todos">To-Do</button>
+      <button class="drawer-tab" data-tab="notes">Notes</button>
+      <button class="drawer-tab" data-tab="chat">Chat</button>
+      <button class="drawer-tab" data-tab="files">Files</button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="drawer-pane active" id="pane-transcript"></div>
+
+      <div class="drawer-pane" id="pane-todos"></div>
+
+      <div class="drawer-pane" id="pane-notes">
+        <div class="notes-list" id="notes-list"></div>
+        <form class="note-form" id="note-form">
+          <textarea id="note-input" rows="2" placeholder="Add a note about this caller or call…"></textarea>
+          <button type="submit">Add note</button>
+        </form>
+      </div>
+
+      <div class="drawer-pane" id="pane-chat">
+        <div class="chat-thread" id="chat-thread">
+          <p class="chat-hint">Search this conversation's transcript — e.g. try "quote" or "photo".</p>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <input type="text" id="chat-input" placeholder="Search this conversation…" autocomplete="off">
+          <button type="submit">Search</button>
+        </form>
+      </div>
+
+      <div class="drawer-pane" id="pane-files">
+        <div class="upload-box">
+          <input type="file" id="upload-input">
+          <button id="upload-btn">Upload</button>
+        </div>
+        <ul class="file-list" id="drawer-file-list"></ul>
+      </div>
+    </div>
+  </aside>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

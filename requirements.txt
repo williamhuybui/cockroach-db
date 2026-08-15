@@ -31,3 +31,5 @@ urllib3==2.5.0
 uvicorn==0.35.0
 websockets==15.0.1
 yarl==1.20.1
+psycopg2-binary==2.9.12
+pandas==2.3.3
