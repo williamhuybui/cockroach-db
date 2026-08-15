@@ -12,3 +12,4 @@ venv/
 .idea/
 .DS_Store
 .claude
+src/call_logs/*.csv
