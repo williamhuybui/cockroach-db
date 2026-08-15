@@ -1,125 +1,141 @@
+"""CockroachDB access — kept simple, with one reused connection per thread.
+Timings against CockroachDB Cloud that shaped this file:
+    opening a connection ~485 ms   (TLS handshake)
+    running a query       ~60 ms
+    an extra COMMIT      ~120 ms
+So each thread opens one connection and keeps it, and autocommit avoids a
+BEGIN/COMMIT round trip per statement. Opening a fresh connection per query
+made a single dashboard load take ~19 seconds.
+FastAPI runs sync endpoints in a bounded worker threadpool, so the number of
+connections stays bounded without a pool library.
 """
-Shared CockroachDB connection management for FastAPI.
-
-This file manages one reusable database connection pool:
-
-1. main.py passes DATABASE_URL into configure_database().
-2. The pool is created but remains closed.
-3. FastAPI opens the pool when the application starts.
-4. API routes borrow connections from the shared pool.
-5. Transactions commit when successful.
-6. Transactions roll back when an error occurs.
-7. FastAPI closes the pool when the application stops.
-
-The pool avoids opening a new CockroachDB connection for every API request and allows for multiple concurrent API requests.
-"""
-
+import os
+import threading
+import asyncio
 from contextlib import asynccontextmanager
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
+load_dotenv()
+_local = threading.local()
+def _connection():
+    """This thread's connection, opening or reopening it as needed."""
+    conn = getattr(_local, "conn", None)
+    if conn is None or conn.closed:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn.autocommit = True
+        _local.conn = conn
+    return conn
+def execute_sql(sql, params=None):
+    """Run one statement and return its rows as dicts (empty list for non-SELECTs).
+    Pass values through `params` as %s placeholders, never f-string them in.
+    """
+    conn = _connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            return cur.fetchall() if cur.description else []
+    except psycopg2.Error:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        _local.conn = None
+        raise
+def generate_call_id():
+    """Take the next call ID from the CockroachDB sequence, e.g. "C001"."""
+    rows = execute_sql("SELECT nextval('call_id_sequence') AS n")
+    return f"C{rows[0]['n']:03d}"
+def save_transcript_turn(call_id, timestamp, caller_number, speaker, text):
+    """Insert one transcript turn and return the saved row."""
+    rows = execute_sql(
+        """
+        INSERT INTO transcripts (call_id, "timestamp", caller_number, speaker, text)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id, call_id, speaker
+        """,
+        (call_id, timestamp, caller_number, speaker, text),
+    )
+    return rows[0]
 
-from psycopg.rows import dict_row
-from psycopg_pool import AsyncConnectionPool
 
-
-# Store the single shared database pool.
+# ---------------------------------------------------------------------------
+# Async-compatible wrapper around the sync connection above.
 #
-# It begins as None because main.py must provide DATABASE_URL before
-# the application can connect to CockroachDB.
-database_pool: AsyncConnectionPool | None = None
+# main.py and routers/*.py were written against an async DB-API style
+# (`await connection.execute(...)`, `await cursor.fetchone()`). Rather than
+# rewrite that call-side code, these adapters run the underlying sync
+# psycopg2 calls in a worker thread and expose the async interface those
+# callers already expect — reusing the same thread-local connection from
+# _connection(), not opening a second one.
+# ---------------------------------------------------------------------------
+
+class _AsyncCursorAdapter:
+    """Wraps a psycopg2 cursor so `await cur.fetchone()` / `await cur.fetchall()`
+    work, by running the blocking calls in a worker thread."""
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    async def fetchone(self):
+        return await asyncio.to_thread(self._cursor.fetchone)
+
+    async def fetchall(self):
+        return await asyncio.to_thread(self._cursor.fetchall)
 
 
-def configure_database(
-    database_url: str,
-) -> AsyncConnectionPool:
-    """
-    Create and return the shared CockroachDB connection pool.
+class _AsyncConnectionAdapter:
+    """Wraps the thread-local psycopg2 connection so `await connection.execute(...)`
+    returns a cursor-like object, matching the async DB-API style routers/*.py
+    was written against."""
 
-    DATABASE_URL contains the database host, credentials, database
-    name, and SSL settings.
+    def __init__(self, conn):
+        self._conn = conn
 
-    The pool is created only once. main.py opens it during FastAPI
-    startup.
-    """
-
-    global database_pool
-
-    if not database_url:
-        raise ValueError(
-            "DATABASE_URL cannot be empty."
-        )
-
-    # Create the pool only when it has not already been configured.
-    if database_pool is None:
-        database_pool = AsyncConnectionPool(
-            # Use DATABASE_URL for all CockroachDB connections.
-            conninfo=database_url,
-
-            # Keep one connection ready for API requests.
-            min_size=1,
-
-            # Allow up to three concurrent database connections.
-            max_size=3,
-
-            # main.py opens the pool when FastAPI starts.
-            open=False,
-
-            # Return query rows as dictionaries.
-            #
-            # Example:
-            # row["caller_number"]
-            #
-            # Instead of:
-            # row[0]
-            kwargs={
-                "row_factory": dict_row,
-            },
-        )
-
-    return database_pool
-
-
-def get_database_pool() -> AsyncConnectionPool:
-    """
-    Return the configured database pool.
-
-    Raise a clear error when main.py has not configured the pool.
-    """
-
-    if database_pool is None:
-        raise RuntimeError(
-            "Database is not configured. "
-            "Call configure_database(DATABASE_URL) "
-            "in main.py."
-        )
-
-    return database_pool
+    async def execute(self, sql, params=None):
+        cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        await asyncio.to_thread(cur.execute, sql, params)
+        return _AsyncCursorAdapter(cur)
 
 
 @asynccontextmanager
 async def get_database_connection():
-    """
-    Borrow one CockroachDB connection from the shared pool.
-
-    The connection returns to the pool automatically when the API
-    operation finishes.
-    """
-
-    pool = get_database_pool()
-
-    async with pool.connection() as connection:
-        yield connection
+    """Async-compatible wrapper around the thread-local connection, for read
+    queries that don't need an explicit transaction."""
+    conn = await asyncio.to_thread(_connection)
+    yield _AsyncConnectionAdapter(conn)
 
 
 @asynccontextmanager
 async def get_database_transaction():
-    """
-    Run database statements inside one transaction.
+    """Same as get_database_connection, but turns off autocommit for the
+    duration so multiple statements inside the block commit atomically."""
+    conn = await asyncio.to_thread(_connection)
+    await asyncio.to_thread(setattr, conn, "autocommit", False)
+    try:
+        yield _AsyncConnectionAdapter(conn)
+        await asyncio.to_thread(conn.commit)
+    except Exception:
+        await asyncio.to_thread(conn.rollback)
+        raise
+    finally:
+        await asyncio.to_thread(setattr, conn, "autocommit", True)
 
-    Successful operations are committed automatically.
 
-    Failed operations are rolled back automatically, preventing
-    partially saved transcript, call, or customer records.
-    """
+def configure_database(database_url=None):
+    """Compatibility no-op: _connection() already opens lazily per-thread,
+    so there's no pool to pre-open here. Kept so main.py's startup/shutdown
+    code doesn't need to change."""
 
-    async with get_database_connection() as connection:
-        async with connection.transaction():
-            yield connection
+    class _NoPool:
+        async def open(self):
+            pass
+
+        async def close(self):
+            pass
+
+    return _NoPool()
+
+
+# import pandas as pd
+# print(execute_sql("SELECT * FROM customers"))

@@ -6,36 +6,30 @@ import asyncio
 import logging
 import websockets
 from datetime import datetime, timezone
+from pathlib import Path
 from fastapi import FastAPI, WebSocket, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from dotenv import load_dotenv
 from config import (
     HARD_CUTOFF_GRACE_SECONDS, TEMPERATURE, VOICE, SYSTEM_MESSAGE, LOG_EVENT_TYPES, SHOW_TIMING_MATH,
     CALL_LOGS_DIR, PORT, SILENCE_DURATION_MS, VERBOSE, GREETING_MODE,
-    VAD_TYPE, VAD_THRESHOLD, VAD_EAGERNESS, VAD_NOISE_REDUCTION,   
+    VAD_TYPE, VAD_THRESHOLD, VAD_EAGERNESS, VAD_NOISE_REDUCTION,
     MAX_CONVERSATION_TOKENS, WRAP_UP_AT_PERCENT, MAX_CALL_DURATION_SECONDS,
 )
-
 from greeting import greeting_twilio, greeting_openai
-from database import get_database_transaction, configure_database
-from sms_service import configure_sms_client 
-# from embedding_service import configure_embedding_client, close_embedding_client
-
+from dashboard import register_dashboard
+from database import (
+    configure_database, get_database_transaction,
+    save_transcript_turn, generate_call_id,
+)
+from sms_service import configure_sms_client
 from contextlib import asynccontextmanager
-
-from routers.health import router as health_router
-from routers.transcripts import router as transcripts_router
-from routers.customers import router as customers_router, get_customer_memory
-from routers.tasks import router as tasks_router
-from routers.calls import router as calls_router
-from services.transcript_service import create_transcript_turn, generate_call_id
-from routers.customers import router as customers_router, find_customer_by_phone
-from api_models import CallCreate
-from database import configure_database, get_database_transaction
-from routers.calls import insert_call
 from pydantic import ValidationError
+from api_models import CallCreate
+from routers.calls import insert_call
+from routers.customers import get_customer_memory
 
 load_dotenv()
 
@@ -49,6 +43,7 @@ logger = logging.getLogger("voice_assistant")
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 if not OPENAI_API_KEY:
     raise ValueError('Missing the OpenAI API key.')
+
 os.makedirs(CALL_LOGS_DIR, exist_ok=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -64,8 +59,8 @@ if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER:
 else:
     logger.warning("Twilio SMS credentials missing; post-call SMS is disabled.")
 
-# Create the shared CockroachDB connection pool
-# The pool will be opened when FastAPI starts.
+# Create the shared CockroachDB "pool" (a no-op wrapper — see database.py's
+# configure_database docstring for why there's no real pool anymore).
 database_pool = configure_database(DATABASE_URL)
 
 @asynccontextmanager
@@ -74,31 +69,40 @@ async def lifespan(app: FastAPI):
     Open the CockroachDB pool when FastAPI starts and close it when
     FastAPI stops.
     """
-
-    # Start the database connections before accepting requests.
     await database_pool.open()
-
     try:
-        # FastAPI serves requests while execution remains here.
         yield
     finally:
-        # Release database connections during shutdown or restart.
         await database_pool.close()
 
 # Create the FastAPI application and attach the startup/shutdown process.
 app = FastAPI(lifespan=lifespan)
+register_dashboard(app)
 
-# Register the new database-backed REST endpoints
-app.include_router(health_router)
-app.include_router(transcripts_router)
-app.include_router(customers_router)
-app.include_router(calls_router)
-app.include_router(tasks_router) 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-# Basic application route
-@app.get("/", response_class=JSONResponse)
-async def index_page():
+@app.get("/", response_class=HTMLResponse)
+async def landing_page():
+    """Public marketing front page — see /dashboard for the internal command center."""
+    return FileResponse(str(STATIC_DIR / "landing.html"))
+
+@app.get("/status", response_class=JSONResponse)
+async def status_page():
     return {"message": "Twilio Media Stream Server is running!"}
+
+@app.get("/health", response_class=JSONResponse)
+async def health():
+    """Confirm the app can query CockroachDB."""
+    try:
+        async with get_database_transaction() as connection:
+            await connection.execute("SELECT 1")
+    except Exception:
+        logger.exception("CockroachDB health check failed.")
+        return JSONResponse(
+            status_code=503,
+            content={"application": "degraded", "database": "disconnected"},
+        )
+    return {"application": "healthy", "database": "connected"}
 
 # Twilio incoming-call route
 @app.api_route("/incoming-call", methods=["GET", "POST"])
@@ -124,7 +128,7 @@ async def handle_incoming_call(request: Request):
     #           </Stream>
     #         </Connect>
     #       </Response>
-    
+
     response = VoiceResponse()
     if GREETING_MODE == "twilio":
         greeting_twilio(response)
@@ -169,23 +173,20 @@ async def handle_media_stream(websocket: WebSocket):
         csv_writer = None
         caller_number = None
         call_id = None
-        call_started_at = None       
-        total_response_tokens = 0   
-        duration_forced = False     
-        wrap_up_nudged = False      
-        ending_call = False  
-        
-        def log_conversation(speaker, text):
+        call_started_at = None
+        total_response_tokens = 0
+        duration_forced = False
+        wrap_up_nudged = False
+        ending_call = False
+
+        def log_conversation(speaker, text, input_tokens="", output_tokens=""):
             if not text:
                 return
             logger.info(f"{caller_number}: {datetime.now().isoformat()}: {speaker}: {text}")
-            if csv_writer:
-                csv_writer.writerow([datetime.now().isoformat(), caller_number, speaker, text])
-                csv_file.flush()
 
         async def save_conversation_turn(speaker: str, text: str):
             """
-            Save one completed caller or assistant transcript turn.
+            Save one completed caller or assistant transcript turn to CockroachDB.
             """
 
             cleaned_text = text.strip()
@@ -195,13 +196,13 @@ async def handle_media_stream(websocket: WebSocket):
 
             if call_id is None:
                 logger.error(
-                    "Cannot save transcript because call_id has not been generated."
+                    "Not saving to CockroachDB: no call_id was generated for this call."
                 )
                 return
 
             if not caller_number or caller_number == "unknown":
                 logger.error(
-                    "Cannot save transcript because caller_number is missing."
+                    "Not saving to CockroachDB: caller_number is missing."
                 )
                 return
 
@@ -231,17 +232,16 @@ async def handle_media_stream(websocket: WebSocket):
                     logger.warning("CSV already closed; skipping backup write.")
 
             try:
-                saved_transcript = await create_transcript_turn(
-                    call_id=call_id,
-                    timestamp=transcript_timestamp,
-                    caller_number=caller_number,
-                    speaker=speaker,
-                    text=cleaned_text,
+                # to_thread keeps the blocking DB insert off the event loop —
+                # otherwise it stalls the audio streaming for the whole call.
+                saved_transcript = await asyncio.to_thread(
+                    save_transcript_turn,
+                    call_id,
+                    transcript_timestamp,
+                    caller_number,
+                    speaker,
+                    cleaned_text,
                 )
-
-                if saved_transcript is None:
-                    logger.warning("Transcript service returned no saved record.")
-                    return
 
                 logger.info(
                     "DATABASE SAVE SUCCESS | call_id=%s | speaker=%s | transcript_id=%s",
@@ -274,15 +274,29 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         caller_number = data['start'].get('customParameters', {}).get('caller_number', 'unknown')
-                        call_id = await generate_call_id()
+
+                        try:
+                            call_id = await asyncio.to_thread(generate_call_id)
+                            logger.info(
+                                        "Generated live call ID: "
+                                        "twilio_stream=%s call_id=%s caller=%s",
+                                        stream_sid,
+                                        call_id,
+                                        caller_number,
+                            )
+                        except Exception:
+                            # Don't let a CockroachDB hiccup take down the call. The
+                            # conversation still works; its transcript just won't be
+                            # recorded (see save_conversation_turn).
+                            logger.exception(
+                                "Failed to generate call_id from CockroachDB for stream %s. "
+                                "This call's transcript will NOT be recorded.",
+                                stream_sid,
+                            )
+                            call_id = None
+
                         call_started_at = datetime.now(timezone.utc)
-                        logger.info(
-                                    "Generated live call ID: "
-                                    "twilio_stream=%s call_id=%s caller=%s",
-                                    stream_sid,
-                                    call_id,
-                                    caller_number,
-                        )
+
                         if VERBOSE:
                             logger.info(f"Incoming stream has started {stream_sid}")
                         response_start_timestamp_twilio = None
@@ -290,7 +304,14 @@ async def handle_media_stream(websocket: WebSocket):
                         last_assistant_item = None
 
                         if caller_number != "unknown":
-                            returning_customer = await get_customer_memory(caller_number)
+                            try:
+                                returning_customer = await get_customer_memory(caller_number)
+                            except Exception:
+                                logger.exception(
+                                    "Failed to look up returning-caller memory for %s.",
+                                    caller_number,
+                                )
+                                returning_customer = None
                             if returning_customer:
                                 logger.info(
                                     "Returning caller matched: caller=%s customer_id=%s",
@@ -351,6 +372,12 @@ async def handle_media_stream(websocket: WebSocket):
 
                     if event.get('type') == 'response.done':
                         usage = event.get('response', {}).get('usage', {}) or {}
+
+                        input_tokens = usage.get('input_tokens', '')
+                        output_tokens = usage.get('output_tokens', '')
+                        if usage:
+                            log_conversation("usage", "response tokens", input_tokens, output_tokens)
+
                         total_response_tokens += usage.get('total_tokens', 0)
 
                         call_duration_seconds = None
@@ -382,7 +409,6 @@ async def handle_media_stream(websocket: WebSocket):
                             logger.info("Max call duration reached (%ss); forcing wrap-up.", call_duration_seconds)
                             await force_end_call_now(openai_ws)
                             asyncio.create_task(enforce_hard_duration_cutoff())
-
 
                         # --- Handle tool calls ---
                         response_obj = event.get('response', {}) or {}
@@ -418,7 +444,6 @@ async def handle_media_stream(websocket: WebSocket):
                                     await send_tool_result(openai_ws, tool_call_id, {"status": "saved"})
 
                             await openai_ws.send(json.dumps({"type": "response.create"}))
-                
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
                     if event.get('type') == 'input_audio_buffer.speech_started':
@@ -430,6 +455,7 @@ async def handle_media_stream(websocket: WebSocket):
                             await handle_speech_started_event()
             except Exception:
                 logger.exception("Error in send_to_twilio")
+
         async def enforce_hard_duration_cutoff():
             """
             Safety net: if the agent hasn't actually ended the call within the
@@ -445,7 +471,7 @@ async def handle_media_stream(websocket: WebSocket):
                 )
                 ending_call = True
                 await end_call_gracefully(websocket, openai_ws)
-                
+
         async def handle_speech_started_event():
             """Handle interruption when the caller's speech starts."""
             nonlocal response_start_timestamp_twilio, last_assistant_item

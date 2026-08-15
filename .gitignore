@@ -27,3 +27,9 @@ certs/
 
 cockroach.zip
 ccloud.zip
+# Uploaded caller files
+uploads/
+caller_names.json
+notes.json
+clients.json
+tmp

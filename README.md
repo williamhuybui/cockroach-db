@@ -14,12 +14,23 @@ Built for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https
 
 ## How it works
 
-`src/` is a FastAPI app that answers a call over **Twilio Voice**, streams the caller's audio to **OpenAI's Realtime API**, and streams the AI's voice back — a live, two-way conversation. Memory and business data are backed by **CockroachDB**.
+`src/` is a FastAPI app that answers a call over **Twilio Voice**, streams the caller's audio to **OpenAI's Realtime API**, and streams the AI's voice back — a live, two-way conversation. Every spoken turn is written to the `transcripts` table in **CockroachDB** as the call happens, with a CSV copy in `call_logs/` as a backup.
 
-To run it locally, see [`GETTING_STARTED.md`](GETTING_STARTED.md). If something's not working, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
+A companion dashboard (`/dashboard`) reads those tables: it lists calls and clients, and per call lets you read/search the transcript, delete turns, add notes, review auto-detected action items, and manage caller-uploaded files.
+
+To run it locally, see [`GETTING_STARTED.md`](GETTING_STARTED.md).
 
 ## Repo layout
 
+- `src/` — the app.
+  - `main.py` — Twilio webhook + WebSocket media-stream handler, writes transcripts live.
+  - `dashboard.py` — `/api/*` endpoints and the `/dashboard` page.
+  - `database.py` — CockroachDB access (`execute_sql`, `generate_call_id`, `save_transcript_turn`).
+  - `config.py`, `greeting.py` — server settings, system prompt, greeting text.
+  - `static/` — landing page (`/`) and dashboard frontend.
+- `migrations/` — one `.sql` file per table; see [`migrations/README.md`](migrations/README.md) to add one.
+- `scripts/` — `migrate.py` (create the tables), `query.py` (ad-hoc SQL as a DataFrame), `send_message.py` (send an SMS).
+- `mock_data/` — generators and CSV fixtures for the demo callers.
 - `ideation/` — pitch docs for candidate hackathon ideas.
-- `meeting/` — meeting notes and team roles (`meeting/role-responsibility.md`).
-- `src/` — the FastAPI + Twilio + OpenAI Realtime backend.
+- `meeting/` — meeting notes and team roles.
+- `call_logs/`, `uploads/`, `notes.json` — generated at runtime, gitignored.
