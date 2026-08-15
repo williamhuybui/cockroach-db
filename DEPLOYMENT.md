@@ -1,5 +1,20 @@
 # Production Deployment Guide
 
+## Deployment summary
+
+The application runs on Amazon Lightsail at [18.224.114.80](https://us-east-2.console.aws.amazon.com/lightsail/webapp/us-east-2/static-ips/frontdesk-production-ip). Caddy provides HTTPS, and GitHub Actions automatically deploys changes merged into `main`.
+
+| Purpose | Link |
+| --- | --- |
+| Main application | [https://18-224-114-80.sslip.io/](https://18-224-114-80.sslip.io/) |
+| Dashboard | [https://18-224-114-80.sslip.io/dashboard](https://18-224-114-80.sslip.io/dashboard) |
+| Health check | [https://18-224-114-80.sslip.io/health](https://18-224-114-80.sslip.io/health) |
+| Lightsail static IP | [18.224.114.80](https://us-east-2.console.aws.amazon.com/lightsail/webapp/us-east-2/static-ips/frontdesk-production-ip) |
+| Twilio webhook | `https://18-224-114-80.sslip.io/incoming-call` |
+| Twilio WebSocket | `wss://18-224-114-80.sslip.io/media-stream` |
+
+## Deployment details
+
 This guide explains how to deploy the Front Desk application to Amazon Lightsail and configure GitHub Actions to deploy future changes automatically.
 
 The deployment uses:
