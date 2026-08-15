@@ -22,7 +22,7 @@ from fastapi import (
     Response,
     status,
 )
-from psycopg.errors import (
+from psycopg2.errors import (
     ForeignKeyViolation,
     UniqueViolation,
 )

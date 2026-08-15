@@ -6,7 +6,7 @@ This router supports the completed-call workflow:
 1. transcripts.py stores live transcript turns in CockroachDB.
 2. The first transcript turn receives a unique call_id.
 3. All later transcript turns reuse that call_id.
-4. After the call ends, an AI agent (TBD) should extracts information such as customer name,
+4. After the call ends, an AI agent should extracts information such as customer name,
    address, roofing problem, availability, urgency, and summary
 5. POST /calls receives the summary and the same call_id.
 6. The router confirms that matching transcript turns exist.
@@ -28,7 +28,7 @@ from fastapi import (
     Response,
     status,
 )
-from psycopg.errors import (
+from psycopg2.errors import (
     ForeignKeyViolation,
     UniqueViolation,
 )
