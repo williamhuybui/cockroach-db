@@ -33,7 +33,7 @@
 |---|---|---|
 | Project Manager | Tri / Huy | |
 | Ideation | Everyone | |
-| Frontend | Huy | Hieu/Tri |
+| Frontend | Huy | Hieu/Tri/Ha |
 | Backend | Huy / Ha | Hieu/Tri |
 | Infra / Deployment | Hieu | Huy/Tri |
 | Research | Ha | Huy/Tri |

@@ -1,4 +1,9 @@
-import csv
+"""Dashboard API — reads calls, transcripts, and customers from CockroachDB.
+
+Transcript turns are written by the live call path in main.py. Notes and
+uploaded files have no tables yet, so they still live on disk
+(notes.json / uploads/).
+"""
 import json
 import re
 import uuid
@@ -10,16 +15,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from database import execute_sql
+
 BASE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = BASE_DIR.parent
-# call logs have shown up in both locations because CALL_LOGS_DIR in config.py
-# is a relative path resolved from whatever directory the server was started in.
-CALL_LOG_DIRS = [BASE_DIR / "call_logs", REPO_ROOT / "call_logs"]
 UPLOADS_DIR = REPO_ROOT / "uploads"
 STATIC_DIR = BASE_DIR / "static"
-CALLER_NAMES_FILE = REPO_ROOT / "caller_names.json"
 NOTES_FILE = REPO_ROOT / "notes.json"
-CLIENTS_FILE = REPO_ROOT / "clients.json"
 
 router = APIRouter()
 
@@ -52,91 +54,7 @@ TOPIC_RULES = [
 
 def generate_topics(messages):
     text = " ".join(m["text"] for m in messages)
-    tags = []
-    for pattern, tag in TOPIC_RULES:
-        if pattern.search(text):
-            tags.append(tag)
-    return tags
-
-
-def _safe_caller_dir(caller_number):
-    digits = re.sub(r"[^0-9A-Za-z]", "", caller_number or "unknown")
-    return digits or "unknown"
-
-
-def _iter_csv_files():
-    seen = set()
-    for log_dir in CALL_LOG_DIRS:
-        if not log_dir.is_dir():
-            continue
-        for path in sorted(log_dir.glob("*.csv")):
-            if path.stem in seen:
-                continue
-            seen.add(path.stem)
-            yield path
-
-
-def _parse_conversation(path):
-    stem = path.stem
-    _, _, digits = stem.rpartition("_")
-    fallback_caller = f"+{digits}" if digits else "unknown"
-
-    messages = []
-    caller_number = None
-    with path.open(newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            timestamp = row.get("timestamp", "")
-            text = (row.get("text") or "").strip()
-            speaker = row.get("speaker", "")
-            row_caller = row.get("caller_number")
-            if row_caller and not caller_number:
-                caller_number = row_caller
-            if not text:
-                continue
-            messages.append({"timestamp": timestamp, "speaker": speaker, "text": text})
-
-    if not caller_number:
-        caller_number = fallback_caller
-
-    start_time = messages[0]["timestamp"] if messages else None
-    end_time = messages[-1]["timestamp"] if messages else None
-    duration_seconds = 0
-    if start_time and end_time:
-        try:
-            duration_seconds = round(
-                (datetime.fromisoformat(end_time) - datetime.fromisoformat(start_time)).total_seconds()
-            )
-        except ValueError:
-            duration_seconds = 0
-
-    preview = next((m["text"] for m in messages if m["speaker"] == "caller"), None)
-    if preview is None:
-        preview = messages[0]["text"] if messages else ""
-
-    return {
-        "id": stem,
-        "caller_number": caller_number,
-        "start_time": start_time,
-        "end_time": end_time,
-        "duration_seconds": duration_seconds,
-        "message_count": len(messages),
-        "preview": preview[:160],
-        "topics": generate_topics(messages),
-        "messages": messages,
-    }
-
-
-def list_conversations():
-    conversations = [_parse_conversation(path) for path in _iter_csv_files()]
-    conversations.sort(key=lambda c: c["start_time"] or "", reverse=True)
-    return conversations
-
-
-def get_conversation(conversation_id):
-    for path in _iter_csv_files():
-        if path.stem == conversation_id:
-            return _parse_conversation(path)
-    return None
+    return [tag for pattern, tag in TOPIC_RULES if pattern.search(text)]
 
 
 def generate_todos(messages):
@@ -166,6 +84,105 @@ def search_conversation(messages, query):
     return {"reply": reply, "matches": matches}
 
 
+def _safe_caller_dir(caller_number):
+    digits = re.sub(r"[^0-9A-Za-z]", "", caller_number or "unknown")
+    return digits or "unknown"
+
+
+# ---------- conversations (one per call_id in the transcripts table) ----------
+
+
+def _build_conversation(call_id, rows):
+    """Shape one call's transcript rows the way the frontend expects."""
+    messages = [
+        {
+            "id": str(r["id"]),
+            "timestamp": r["timestamp"].isoformat() if r["timestamp"] else "",
+            "speaker": r["speaker"],
+            "text": r["text"],
+        }
+        for r in rows
+    ]
+
+    start_time = messages[0]["timestamp"] if messages else None
+    end_time = messages[-1]["timestamp"] if messages else None
+    duration_seconds = 0
+    if rows and rows[0]["timestamp"] and rows[-1]["timestamp"]:
+        duration_seconds = round((rows[-1]["timestamp"] - rows[0]["timestamp"]).total_seconds())
+
+    preview = next((m["text"] for m in messages if m["speaker"] == "caller"), None)
+    if preview is None:
+        preview = messages[0]["text"] if messages else ""
+
+    # topics and todos are derived from `messages` we already have in memory, so
+    # they cost nothing extra and save the frontend a request per conversation.
+    return {
+        "id": call_id,
+        "caller_number": rows[0]["caller_number"] if rows else "unknown",
+        "start_time": start_time,
+        "end_time": end_time,
+        "duration_seconds": duration_seconds,
+        "message_count": len(messages),
+        "preview": preview[:160],
+        "topics": generate_topics(messages),
+        "todos": generate_todos(messages),
+        "messages": messages,
+    }
+
+
+def list_conversations():
+    """Every call in the transcripts table, newest first."""
+    rows = execute_sql(
+        """
+        SELECT id, call_id, "timestamp", caller_number, speaker, text
+        FROM transcripts
+        ORDER BY call_id, "timestamp"
+        """
+    )
+
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row["call_id"], []).append(row)
+
+    conversations = [_build_conversation(cid, r) for cid, r in grouped.items()]
+    conversations.sort(key=lambda c: c["start_time"] or "", reverse=True)
+    return conversations
+
+
+def get_conversation(conversation_id):
+    rows = execute_sql(
+        """
+        SELECT id, call_id, "timestamp", caller_number, speaker, text
+        FROM transcripts
+        WHERE call_id = %s
+        ORDER BY "timestamp"
+        """,
+        (conversation_id,),
+    )
+    if not rows:
+        return None
+    return _build_conversation(conversation_id, rows)
+
+
+# ---------- notes (still on disk — no notes table yet) ----------
+
+
+def _load_notes():
+    if not NOTES_FILE.exists():
+        return {}
+    try:
+        return json.loads(NOTES_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_notes(notes):
+    NOTES_FILE.write_text(json.dumps(notes, indent=2), encoding="utf-8")
+
+
+# ---------- request bodies ----------
+
+
 class ChatRequest(BaseModel):
     message: str
 
@@ -193,54 +210,7 @@ class NewClientRequest(ClientRequest):
     phone: str
 
 
-def _load_json_file(path):
-    if not path.exists():
-        return {}
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def _save_json_file(path, data):
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-
-
-def _load_caller_names():
-    return _load_json_file(CALLER_NAMES_FILE)
-
-
-def _load_notes():
-    return _load_json_file(NOTES_FILE)
-
-
-def _save_notes(notes):
-    _save_json_file(NOTES_FILE, notes)
-
-
-def _load_clients():
-    clients = _load_json_file(CLIENTS_FILE)
-    if not clients and CALLER_NAMES_FILE.exists():
-        # one-time migration from the earlier caller-name-only store
-        legacy_names = _load_caller_names()
-        clients = {phone: {"name": name, "email": "", "address": ""} for phone, name in legacy_names.items()}
-        if clients:
-            _save_json_file(CLIENTS_FILE, clients)
-    return clients
-
-
-def _save_clients(clients):
-    _save_json_file(CLIENTS_FILE, clients)
-
-
-def _client_record(clients, phone):
-    record = clients.get(phone, {})
-    return {
-        "phone": phone,
-        "name": record.get("name", ""),
-        "email": record.get("email", ""),
-        "address": record.get("address", ""),
-    }
+# ---------- conversation endpoints ----------
 
 
 @router.get("/api/conversations")
@@ -256,6 +226,36 @@ async def api_get_conversation(conversation_id: str):
     return conversation
 
 
+@router.delete("/api/conversations/{conversation_id}")
+async def api_delete_conversation(conversation_id: str):
+    """Delete a whole call's transcript (every turn) from CockroachDB."""
+    rows = execute_sql(
+        "DELETE FROM transcripts WHERE call_id = %s RETURNING id",
+        (conversation_id,),
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Drop its notes too, so they don't dangle against a deleted call.
+    notes = _load_notes()
+    if notes.pop(conversation_id, None) is not None:
+        _save_notes(notes)
+
+    return {"deleted": conversation_id, "turns_deleted": len(rows)}
+
+
+@router.delete("/api/conversations/{conversation_id}/messages/{message_id}")
+async def api_delete_message(conversation_id: str, message_id: str):
+    """Delete a single transcript turn."""
+    rows = execute_sql(
+        "DELETE FROM transcripts WHERE call_id = %s AND id = %s RETURNING id",
+        (conversation_id, message_id),
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return {"deleted": message_id}
+
+
 @router.get("/api/conversations/{conversation_id}/todos")
 async def api_conversation_todos(conversation_id: str):
     conversation = get_conversation(conversation_id)
@@ -266,17 +266,18 @@ async def api_conversation_todos(conversation_id: str):
 
 @router.get("/api/todos")
 async def api_all_todos():
-    grouped = []
-    for conversation in list_conversations():
-        todos = generate_todos(conversation["messages"])
-        if todos:
-            grouped.append({
-                "conversation_id": conversation["id"],
-                "caller_number": conversation["caller_number"],
-                "start_time": conversation["start_time"],
-                "todos": todos,
-            })
-    return grouped
+    """Action items across every call. The dashboard gets these from
+    /api/conversations now; this stays for direct/API use."""
+    return [
+        {
+            "conversation_id": c["id"],
+            "caller_number": c["caller_number"],
+            "start_time": c["start_time"],
+            "todos": c["todos"],
+        }
+        for c in list_conversations()
+        if c["todos"]
+    ]
 
 
 @router.post("/api/conversations/{conversation_id}/chat")
@@ -285,6 +286,9 @@ async def api_conversation_chat(conversation_id: str, body: ChatRequest):
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return search_conversation(conversation["messages"], body.message)
+
+
+# ---------- notes endpoints ----------
 
 
 @router.get("/api/conversations/{conversation_id}/notes")
@@ -320,6 +324,9 @@ async def api_delete_note(conversation_id: str, note_id: str):
     notes[conversation_id] = conversation_notes
     _save_notes(notes)
     return conversation_notes
+
+
+# ---------- uploads (still on disk) ----------
 
 
 @router.get("/api/uploads/{caller_number}")
@@ -375,39 +382,78 @@ async def api_rename_upload(caller_number: str, body: RenameUploadRequest):
     return await api_list_uploads(caller_number)
 
 
+# ---------- clients (the customers table) ----------
+
+
+def _client_record(row):
+    return {
+        "phone": row["phone_number"],
+        "name": row["full_name"] or "",
+        "email": row["email"] or "",
+        "address": row["address"] or "",
+    }
+
+
+def _get_customer(phone):
+    rows = execute_sql("SELECT * FROM customers WHERE phone_number = %s", (phone,))
+    return rows[0] if rows else None
+
+
 @router.get("/api/callers/names")
 async def api_caller_names():
-    clients = _load_clients()
-    return {phone: record.get("name", "") for phone, record in clients.items() if record.get("name")}
+    rows = execute_sql(
+        "SELECT phone_number, full_name FROM customers WHERE full_name IS NOT NULL AND full_name != ''"
+    )
+    return {r["phone_number"]: r["full_name"] for r in rows}
 
 
 @router.post("/api/callers/{caller_number}/name")
 async def api_set_caller_name(caller_number: str, body: CallerNameRequest):
-    clients = _load_clients()
-    record = clients.setdefault(caller_number, {"name": "", "email": "", "address": ""})
-    record["name"] = body.name.strip()
-    _save_clients(clients)
-    return {phone: r.get("name", "") for phone, r in clients.items() if r.get("name")}
+    name = body.name.strip()
+    execute_sql(
+        """
+        INSERT INTO customers (phone_number, full_name)
+        VALUES (%s, %s)
+        ON CONFLICT (phone_number) DO UPDATE SET full_name = %s, updated_at = now()
+        """,
+        (caller_number, name, name),
+    )
+    return await api_caller_names()
 
 
 @router.get("/api/clients")
 async def api_list_clients():
-    clients = _load_clients()
-    stats = {}
-    for conversation in list_conversations():
-        phone = conversation["caller_number"]
-        entry = stats.setdefault(phone, {"call_count": 0, "last_call": None})
-        entry["call_count"] += 1
-        if not entry["last_call"] or (conversation["start_time"] or "") > entry["last_call"]:
-            entry["last_call"] = conversation["start_time"]
+    """Every customer, plus call counts taken from the transcripts table."""
+    customers = execute_sql("SELECT * FROM customers")
+    stats = execute_sql(
+        """
+        SELECT caller_number,
+               count(DISTINCT call_id) AS call_count,
+               max("timestamp") AS last_call
+        FROM transcripts
+        GROUP BY caller_number
+        """
+    )
+    stats_by_phone = {s["caller_number"]: s for s in stats}
 
-    phones = set(clients.keys()) | set(stats.keys())
     result = []
-    for phone in phones:
-        record = _client_record(clients, phone)
-        record["call_count"] = stats.get(phone, {}).get("call_count", 0)
-        record["last_call"] = stats.get(phone, {}).get("last_call")
+    for row in customers:
+        record = _client_record(row)
+        stat = stats_by_phone.pop(row["phone_number"], None)
+        record["call_count"] = stat["call_count"] if stat else 0
+        record["last_call"] = stat["last_call"].isoformat() if stat and stat["last_call"] else None
         result.append(record)
+
+    # Callers who phoned in but aren't saved as customers yet.
+    for phone, stat in stats_by_phone.items():
+        result.append({
+            "phone": phone,
+            "name": "",
+            "email": "",
+            "address": "",
+            "call_count": stat["call_count"],
+            "last_call": stat["last_call"].isoformat() if stat["last_call"] else None,
+        })
 
     result.sort(key=lambda r: r["last_call"] or "", reverse=True)
     return result
@@ -418,24 +464,38 @@ async def api_create_client(body: NewClientRequest):
     phone = body.phone.strip()
     if not phone:
         raise HTTPException(status_code=400, detail="Phone number is required")
-    clients = _load_clients()
-    clients[phone] = {"name": body.name.strip(), "email": body.email.strip(), "address": body.address.strip()}
-    _save_clients(clients)
-    return _client_record(clients, phone)
+    return await api_update_client(phone, body)
 
 
 @router.get("/api/clients/{phone}")
 async def api_get_client(phone: str):
-    clients = _load_clients()
-    return _client_record(clients, phone)
+    row = _get_customer(phone)
+    if not row:
+        return {"phone": phone, "name": "", "email": "", "address": ""}
+    return _client_record(row)
 
 
 @router.post("/api/clients/{phone}")
 async def api_update_client(phone: str, body: ClientRequest):
-    clients = _load_clients()
-    clients[phone] = {"name": body.name.strip(), "email": body.email.strip(), "address": body.address.strip()}
-    _save_clients(clients)
-    return _client_record(clients, phone)
+    rows = execute_sql(
+        """
+        INSERT INTO customers (phone_number, full_name, email, address)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (phone_number) DO UPDATE
+            SET full_name = %s, email = %s, address = %s, updated_at = now()
+        RETURNING *
+        """,
+        (
+            phone,
+            body.name.strip(),
+            body.email.strip(),
+            body.address.strip(),
+            body.name.strip(),
+            body.email.strip(),
+            body.address.strip(),
+        ),
+    )
+    return _client_record(rows[0])
 
 
 @router.get("/api/clients/{phone}/conversations")
