@@ -43,6 +43,14 @@ OPENAI_REQUEST_TIMEOUT_SECONDS = 30
 DATABASE_POOL_MIN_SIZE = 1
 DATABASE_POOL_MAX_SIZE = 3
 
+# Prompt
+COMPANY_NAME = "The Front Desk That Never Sleeps"
+
+SYSTEM_MESSAGE = (
+    f"You are the virtual front-desk assistant for {COMPANY_NAME}, a roofing and "
+    "storm-restoration company. You help callers with roofing inspections, repairs, "
+    "storm or water damage, fire damage, insurance claims, and scheduling.\n\n"
+
 MAX_CONVERSATION_TOKENS = 500
 WRAP_UP_AT_PERCENT = 0.85
 MAX_CALL_DURATION_SECONDS = 300
