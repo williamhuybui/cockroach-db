@@ -15,6 +15,22 @@
   --roof: #fab219;
   --roof-wash: rgba(250, 178, 25, 0.14);
   --good: #2fbf71;
+  --serious: #ec835a;
+  --violet: #8b7fd6;
+
+  /* One color per "how it works" step (landing.html's data-step="0".."4") —
+     each step and the stage card on the right share the same color so
+     picking a step visibly "tints" the whole right-hand panel to match. */
+  --step-0: var(--accent);
+  --step-0-wash: var(--accent-wash);
+  --step-1: var(--roof);
+  --step-1-wash: var(--roof-wash);
+  --step-2: var(--good);
+  --step-2-wash: rgba(47, 191, 113, 0.14);
+  --step-3: var(--serious);
+  --step-3-wash: rgba(236, 131, 90, 0.14);
+  --step-4: var(--violet);
+  --step-4-wash: rgba(139, 127, 214, 0.14);
 }
 
 * { box-sizing: border-box; }
@@ -298,6 +314,8 @@ img, svg { display: block; max-width: 100%; }
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .step:hover { border-color: var(--border); }
+/* Fallback for a step index beyond --step-0..4 (shouldn't happen with 5
+   steps, but keeps this from silently going colorless if one's ever added). */
 .step.active { border-color: var(--accent); background: var(--accent-wash); }
 
 .step-num {
@@ -310,6 +328,21 @@ img, svg { display: block; max-width: 100%; }
   color: var(--text-muted);
 }
 .step.active .step-num { background: var(--accent); color: #fff; }
+
+/* Each step gets its own color (see the --step-N vars above) instead of
+   every active step looking the same — and the stage card on the right
+   (below) picks up the same color per data-step, so clicking a step tints
+   both sides to match. */
+.step[data-step="0"].active { border-color: var(--step-0); background: var(--step-0-wash); }
+.step[data-step="0"].active .step-num { background: var(--step-0); }
+.step[data-step="1"].active { border-color: var(--step-1); background: var(--step-1-wash); }
+.step[data-step="1"].active .step-num { background: var(--step-1); }
+.step[data-step="2"].active { border-color: var(--step-2); background: var(--step-2-wash); }
+.step[data-step="2"].active .step-num { background: var(--step-2); }
+.step[data-step="3"].active { border-color: var(--step-3); background: var(--step-3-wash); }
+.step[data-step="3"].active .step-num { background: var(--step-3); }
+.step[data-step="4"].active { border-color: var(--step-4); background: var(--step-4-wash); }
+.step[data-step="4"].active .step-num { background: var(--step-4); }
 
 .step-body { display: flex; flex-direction: column; gap: 4px; }
 .step-body strong { font-size: 14px; }
@@ -328,12 +361,27 @@ img, svg { display: block; max-width: 100%; }
   gap: 14px;
   justify-content: center;
   min-height: 280px;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
+
+/* Same 5 colors as the step list (JS sets data-step on #stage-card to match
+   whichever step is active) — the wash is layered under the existing
+   surface gradient rather than replacing it, so text stays readable. */
+.stage-card[data-step="0"] { border-color: var(--step-0); background: linear-gradient(160deg, var(--step-0-wash), var(--surface-2)); }
+.stage-card[data-step="1"] { border-color: var(--step-1); background: linear-gradient(160deg, var(--step-1-wash), var(--surface-2)); }
+.stage-card[data-step="2"] { border-color: var(--step-2); background: linear-gradient(160deg, var(--step-2-wash), var(--surface-2)); }
+.stage-card[data-step="3"] { border-color: var(--step-3); background: linear-gradient(160deg, var(--step-3-wash), var(--surface-2)); }
+.stage-card[data-step="4"] { border-color: var(--step-4); background: linear-gradient(160deg, var(--step-4-wash), var(--surface-2)); }
 
 .stage-icon { font-size: 30px; }
 .stage-card h3 { margin: 0; font-size: 19px; }
 .stage-card p { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; max-width: 420px; }
+.stage-card[data-step="0"] .stage-quote { border-left-color: var(--step-0); }
+.stage-card[data-step="1"] .stage-quote { border-left-color: var(--step-1); }
+.stage-card[data-step="2"] .stage-quote { border-left-color: var(--step-2); }
+.stage-card[data-step="3"] .stage-quote { border-left-color: var(--step-3); }
+.stage-card[data-step="4"] .stage-quote { border-left-color: var(--step-4); }
+
 .stage-quote {
   margin-top: 6px;
   font-size: 13px;

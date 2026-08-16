@@ -36,6 +36,7 @@ from psycopg2.errors import (
 from api_models import (
     CallCreate,
     CallUpdate,
+    TodoItem,
     validate_phone_number,
 )
 from database import (
@@ -215,10 +216,14 @@ async def upsert_customer(
         )
         ON CONFLICT (phone_number)
         DO UPDATE SET
-            full_name = COALESCE(
-                excluded.full_name,
-                customers.full_name
-            ),
+            -- A human-corrected name (dashboard Clients tab / drawer "Edit
+            -- name") wins over anything extraction pulls from the
+            -- transcript, permanently, until the correction itself is
+            -- changed from the dashboard again.
+            full_name = CASE
+                WHEN customers.name_is_manual THEN customers.full_name
+                ELSE COALESCE(excluded.full_name, customers.full_name)
+            END,
             address = COALESCE(
                 excluded.address,
                 customers.address
@@ -260,22 +265,32 @@ async def create_tasks_for_call(
     appointment isn't confirmed yet). If the agent didn't return
     explicit todo_items but did report a problem, fall back to one
     generic follow-up task so nothing falls through the cracks.
+
+    is_appointment and suggested_datetime come straight from the
+    extraction LLM's own read of each item (see post_call_extraction.py) —
+    there's no keyword/regex classification after the fact. suggested_datetime
+    only ever pre-fills the dashboard's Schedule sheet; a human still has to
+    click Save to actually book it into scheduled_at.
     """
 
     todo_items = call.todo_items or []
 
     if not todo_items and call.problem:
-        todo_items = [f"Follow up on: {call.problem}"]
+        todo_items = [TodoItem(description=f"Follow up on: {call.problem}")]
 
-    for description in todo_items:
+    for item in todo_items:
         await connection.execute(
             """
             INSERT INTO tasks (
                 call_id,
                 customer_id,
-                description
+                description,
+                is_appointment,
+                suggested_datetime
             )
             VALUES (
+                %s,
+                %s,
                 %s,
                 %s,
                 %s
@@ -284,7 +299,9 @@ async def create_tasks_for_call(
             (
                 call.call_id,
                 customer_id,
-                description,
+                item.description,
+                item.is_appointment,
+                item.suggested_datetime,
             ),
         )
 
@@ -402,6 +419,91 @@ async def insert_call(
     )
 
     return row
+
+
+async def update_call_from_extraction(
+    connection,
+    call,
+):
+    """
+    Overwrite an EXISTING call's extracted fields with a fresh extraction
+    result (the dashboard's "re-run extraction" button — see
+    dashboard.py's api_reextract_conversation).
+
+    Unlike insert_call, this never touches the tasks table itself — the
+    caller decides whether to (re)create to-do items, since a rerun
+    shouldn't silently wipe out tasks a human has already scheduled or
+    completed from the dashboard. Returns (row, customer_id) so the caller
+    can make that call.
+    """
+
+    call.call_id = validate_call_id(
+        call.call_id
+    )
+
+    await verify_transcripts_exist(
+        connection,
+        call,
+    )
+
+    # Re-upserting keeps the customer record in sync too — COALESCE in its
+    # ON CONFLICT means a less-complete rerun can't blank out a name/address/
+    # email a previous extraction already found.
+    customer_id = await upsert_customer(
+        connection,
+        call,
+    )
+
+    email = (
+        str(call.email)
+        if call.email is not None
+        else None
+    )
+
+    # Deliberately only the fields extraction actually produces — no status,
+    # timestamp, caller_number, or previous_call_id here, so this can never
+    # clobber values a rerun's prompt doesn't even try to set.
+    cursor = await connection.execute(
+        """
+        UPDATE calls
+        SET name = %s,
+            email = %s,
+            address = %s,
+            problem = %s,
+            problem_detail = %s,
+            availability = %s,
+            urgency = %s,
+            tags = %s,
+            calling_on_behalf_of = %s,
+            summary = %s,
+            customer_id = %s
+        WHERE call_id = %s
+        RETURNING *
+        """,
+        (
+            call.name,
+            email,
+            call.address,
+            call.problem,
+            call.problem_detail,
+            call.availability,
+            call.urgency,
+            call.tags,
+            call.calling_on_behalf_of,
+            call.summary,
+            customer_id,
+            call.call_id,
+        ),
+    )
+
+    row = await cursor.fetchone()
+
+    if row is None:
+        raise RuntimeError(
+            "Call update returned no row."
+        )
+
+    return row, customer_id
 
 
 @router.post(

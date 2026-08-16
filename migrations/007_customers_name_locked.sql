@@ -1,0 +1,11 @@
+-- Marks a customer's name as manually corrected from the dashboard's
+-- Clients tab (POST /api/clients/{phone}) or the drawer's "Edit name"
+-- (POST /api/callers/{caller_number}/name), so a later post-call extraction
+-- — including the "re-run extraction" (⟳) button — can never silently
+-- overwrite it with whatever the AI agent happened to call the customer
+-- during a call's transcript. Depends on: customers (001_customers.sql).
+--
+-- Per migrations/README.md, 001_customers.sql's CREATE TABLE was updated to
+-- declare this column too, so a fresh database and an existing one
+-- converge. See routers/calls.py's upsert_customer for the read side.
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS name_is_manual BOOLEAN NOT NULL DEFAULT false;

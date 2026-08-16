@@ -67,6 +67,26 @@ mkdir -p ~/.postgresql
 curl -o ~/.postgresql/root.crt <CA cert URL from CockroachDB Cloud → cluster → Connect>
 ```
 
+#### Optional: Google Calendar (appointment scheduling)
+
+The dashboard's "Schedule" button (see `src/calendar_service.py`) works without
+this — appointments just save to the `tasks` table without a calendar event.
+To have them show up on a real Google Calendar too:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create/select a project and enable the **Google Calendar API**.
+2. **IAM & Admin → Service Accounts** → create one → **Keys → Add key → Create new key (JSON)**. Save the downloaded file as `google-service-account.json` in the repo root (already gitignored).
+3. Open the Google Calendar you want appointments on → **Settings and sharing → Share with specific people** → add the service account's `client_email` (from the JSON key) with **"Make changes to events"**. Then copy that calendar's ID from **Settings and sharing → Integrate calendar**.
+4. Add to `.env`:
+   ```dotenv
+   GOOGLE_CALENDAR_ID="your-calendar-id@group.calendar.google.com"
+   GOOGLE_SERVICE_ACCOUNT_FILE="google-service-account.json"
+   ```
+   (Relative paths resolve against the repo root regardless of where you run things from — see `src/calendar_service.py`.)
+5. Sanity-check it directly: `cd src && python calendar_service.py` — it creates a test event a day out and prints its id.
+
+The company's local timezone used to interpret the Schedule sheet's date/time
+is `COMPANY_TIMEZONE` in `src/config.py` (defaults to `"America/Los_Angeles"`).
+
 Other settings (voice, greeting mode, system prompt, port, VAD type, call length limits) live in `src/config.py`.
 
 ## Every time you develop

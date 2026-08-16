@@ -1,6 +1,12 @@
 # Server
 PORT = 5050
 
+# Scheduling
+# The company's local timezone, used to interpret the date/time picked in
+# the dashboard's Schedule sheet before storing it (as UTC) and sending it
+# to Google Calendar. See src/calendar_service.py.
+COMPANY_TIMEZONE = "America/Los_Angeles"
+
 # Model
 TEMPERATURE = 0.7
 VOICE = 'alloy'
@@ -43,7 +49,7 @@ OPENAI_REQUEST_TIMEOUT_SECONDS = 30
 DATABASE_POOL_MIN_SIZE = 1
 DATABASE_POOL_MAX_SIZE = 3
 
-MAX_CONVERSATION_TOKENS = 500
+MAX_CONVERSATION_TOKENS = 5000
 WRAP_UP_AT_PERCENT = 0.85
 MAX_CALL_DURATION_SECONDS = 300
 HARD_CUTOFF_GRACE_SECONDS = 20 
@@ -55,7 +61,7 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_REQUEST_TIMEOUT_SECONDS = 20
 
 # Prompt
-COMPANY_NAME = "AM Construction Services"
+COMPANY_NAME = "Roofing Services"
  
 SYSTEM_MESSAGE = (
     f"You are the virtual front-desk assistant for {COMPANY_NAME}, a roofing and "
@@ -82,15 +88,16 @@ SYSTEM_MESSAGE = (
     "calling on someone else's behalf).\n"
     "- address: the property address needing service — always get this for any "
     "inspection, repair, or estimate request.\n"
-    "- email: ask when it's natural, e.g. to send a confirmation or estimate — don't "
-    "push if the caller hesitates or seems in a hurry.\n"
     "- problem: a short label for the issue (e.g. \"roof leak\", \"missing shingles\", "
     "\"storm damage\").\n"
     "- problem_detail: a bit more specific — where on the property, how long it's "
     "been going on, what caused it if the caller knows.\n"
     "- availability: what days or times work for a technician to visit or call back.\n"
     "Their phone number is already captured automatically from the call — you don't "
-    "need to ask for it unless they're calling on someone else's behalf.\n\n"
+    "need to ask for it unless they're calling on someone else's behalf. Do not ask "
+    "for an email address, and do not offer to send an email confirmation or "
+    "estimate — this business does not do email confirmations; a team member follows "
+    "up by phone instead.\n\n"
  
     "COMMON SITUATIONS — handle each like this:\n"
     "- New inspection/estimate request: get the property address and a short description "
