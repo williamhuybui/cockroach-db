@@ -1,0 +1,39 @@
+MOCK CALL C013: SAGGING ROOF AND VENTILATION CONCERN
+
+Call ID: C013
+Caller number: +14175550113
+Call started: 2026-08-11T20:15:00.000Z
+
+ASSISTANT: Thank you for calling AM Construction Services. This call may be recorded for staff training and quality assurance. To help us serve everyone quickly, we try to keep calls to about 5 minutes — if we can't fully resolve your issue by then, I'll pass your details to a team member who will call you back. How can I help you today?
+
+CALLER: The roof over my attached garage looks like it is sagging, and the attic above it gets much hotter than the rest of the house.
+
+ASSISTANT: That should be inspected. Has any material fallen, is the ceiling below sagging, or is water entering?
+
+CALLER: Nothing has fallen and there is no leak. The dip in the roofline has become more noticeable over about two months.
+
+ASSISTANT: Please avoid entering the affected attic area or putting weight on the roof. May I have your name and address?
+
+CALLER: Kevin Moore, 44 Summit Ridge Road, Rogersville, Missouri 65742.
+
+ASSISTANT: Is the sagging limited to one spot, and have you noticed blocked vents or damaged framing from a safe location?
+
+CALLER: The dip is centered over the garage door. From the ground, one soffit vent looks covered with old paint or debris.
+
+ASSISTANT: Any recent storm, tree impact, or work in that area?
+
+CALLER: No impact. The garage roof was reshingled about eight years ago.
+
+ASSISTANT: I will note both the structural-looking sag and possible ventilation issue. What time can someone meet the technician?
+
+CALLER: Tomorrow afternoon any time after twelve-thirty.
+
+ASSISTANT: Would you like to provide an email?
+
+CALLER: Yes, kevin.moore@example.com.
+
+ASSISTANT: I have a high-priority inspection request for the increasing sag over the garage door and a possibly blocked soffit vent at 44 Summit Ridge Road, with no current leak or falling material. Is there anything else I can help you with?
+
+CALLER: No, that is all.
+
+ASSISTANT: The team will follow up. Goodbye.

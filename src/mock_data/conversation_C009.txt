@@ -1,0 +1,36 @@
+MOCK CALL C009: RETURNING CALLER — COMPLAINT FOLLOW-UP TO C001
+
+Call ID: C009
+Caller number: +14175550101
+Call started: 2026-08-07T21:10:00.000Z
+Previous call ID: C001
+
+ASSISTANT: Thank you for calling AM Construction Services. This call may be recorded for staff training and quality assurance. To help us serve everyone quickly, we try to keep calls to about 5 minutes — if we can't fully resolve your issue by then, I'll pass your details to a team member who will call you back. How can I help you today?
+
+CALLER: I'm Mark Reynolds calling back about the leak near my chimney. I was expecting a callback and did not receive one.
+
+ASSISTANT: I'm sorry the callback did not happen. I see the request for 412 Cascade Avenue and the living-room ceiling leak near the chimney. Are your address and contact information unchanged?
+
+CALLER: Yes, they are the same, but the stain spread another six inches during last night's rain.
+
+ASSISTANT: Thank you for telling me. Is water entering now, and is the stain still away from the ceiling fan?
+
+CALLER: It is dry right now. The edge is closer to the fan than before, but it has not reached it.
+
+ASSISTANT: Please stop using the fan if the area becomes wet. I will note both the missed callback and the worsening stain for a manager and the service team.
+
+CALLER: I appreciate that. I do not want to restart the whole request; I just need someone to call me.
+
+ASSISTANT: You do not need to repeat the intake. I have the existing address, email, leak location, and prior availability. What callback time works now?
+
+CALLER: Any time after five today, or tomorrow morning.
+
+ASSISTANT: I have updated the request to high priority and asked for a manager follow-up regarding the missed response. I cannot promise an exact callback time. Is there anything else I should add?
+
+CALLER: No, the larger stain and missed callback are the only changes.
+
+ASSISTANT: Is there anything else I can help you with?
+
+CALLER: No. Thank you.
+
+ASSISTANT: You're welcome, Mark. Goodbye.

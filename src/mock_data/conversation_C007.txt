@@ -1,0 +1,36 @@
+MOCK CALL C007: RETURNING CALLER — FOLLOW-UP TO C002
+
+Call ID: C007
+Caller number: +14175550102
+Call started: 2026-08-05T19:00:00.000Z
+Previous call ID: C002
+
+ASSISTANT: Thank you for calling AM Construction Services. This call may be recorded for staff training and quality assurance. To help us serve everyone quickly, we try to keep calls to about 5 minutes — if we can't fully resolve your issue by then, I'll pass your details to a team member who will call you back. How can I help you today?
+
+CALLER: This is Emily Carter calling back about the wind damage at 28 Pinecrest Drive. I called before about missing shingles, a loose gutter, and fascia.
+
+ASSISTANT: I see the earlier report. I have the missing shingles on the south slope, the rear gutter near the patio, and loose fascia above the garage. Are the address and your contact details still the same?
+
+CALLER: Yes, everything is the same. I am calling because the temporary tarp above the garage is lifting now.
+
+ASSISTANT: Thank you for the update. Is water entering the home or garage?
+
+CALLER: There is a new light-brown spot on the garage ceiling. It is not dripping yet.
+
+ASSISTANT: Is the stain near any light fixture, wiring, or the garage-door opener?
+
+CALLER: It is about two feet from the garage-door opener and several feet from the ceiling light.
+
+ASSISTANT: Please avoid the electrical equipment if water reaches it. Has anything changed with the gutter or fascia?
+
+CALLER: The gutter is still loose, but the fascia has not moved any farther.
+
+ASSISTANT: I will update the existing request with the lifting tarp and new garage-ceiling stain. What availability should I add?
+
+CALLER: I can be home today after two or tomorrow morning.
+
+ASSISTANT: I have kept your email as emily.carter@example.com and marked the follow-up high priority. A team member will contact you; I cannot promise a specific arrival time. Is there anything else I can help you with?
+
+CALLER: No, I just wanted the new leak added to the same request.
+
+ASSISTANT: It has been added. Thank you for calling back, and goodbye.
