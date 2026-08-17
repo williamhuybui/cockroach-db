@@ -28,6 +28,7 @@ caller_names.json
 notes.json
 clients.json
 tmp
+google-service-account.json
 
 # One-off scripts used to fix legacy mock data (not part of app runtime)
 scripts/export_mock_data.py
