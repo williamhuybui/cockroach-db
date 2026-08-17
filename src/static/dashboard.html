@@ -2,65 +2,85 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0d0d">
   <title>Front Desk — Command Center</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/ui.css">
   <link rel="stylesheet" href="/static/dashboard.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="/" title="Back to homepage"><span class="brand-icon">☎</span> Front Desk <span class="brand-sub">Command Center</span></a>
+      <nav class="topbar-nav">
+        <button class="nav-item active" data-view="calls">Calls</button>
+        <button class="nav-item" data-view="clients">Clients</button>
+        <!-- Not a view switch — the live monitor is its own page, opened in a
+             new tab so its always-open SSE connection doesn't tie up this
+             tab's loading indicator. See src/static/live.html/live.js. -->
+        <a class="nav-item" href="/live" target="_blank" rel="noopener">Live ↗</a>
+      </nav>
       <div class="topbar-right">
         <a class="home-link" href="/">← Home</a>
         <span id="clock" class="clock"></span>
       </div>
     </header>
 
-    <nav class="sidebar">
-      <button class="nav-item active" data-view="calls">Calls</button>
-      <button class="nav-item" data-view="clients">Clients</button>
-    </nav>
-
     <main class="content">
       <section id="view-calls" class="view active">
         <div class="stat-tiles" id="stat-tiles"></div>
 
         <div class="action-items-card">
-          <button class="action-items-toggle" id="action-items-toggle" type="button">
-            <span class="caret">▾</span> Action items <span class="action-items-count" id="action-items-count"></span>
-          </button>
+          <div class="action-items-header">
+            <button class="action-items-toggle" id="action-items-toggle" type="button">
+              <span class="caret">▾</span> Action items <span class="action-items-count" id="action-items-count"></span>
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm action-items-done-toggle" id="action-items-done-toggle" hidden>Show done</button>
+          </div>
           <div class="action-items-body" id="action-items-body">
             <div id="action-items-list"></div>
-            <p class="empty-state" id="action-items-empty" hidden>Nothing needs follow-up right now.</p>
+            <p class="empty-state" id="action-items-empty" hidden>
+              Nothing needs follow-up right now. Action items come from the AI's
+              post-call extraction, so calls recorded before that shipped won't have any.
+            </p>
           </div>
         </div>
 
+        <!-- Mobile only (≤860px): the filter row above is hidden once the
+             table becomes a card list, so this is the phone search entry
+             point. Matches against the same fields applyFilters() already
+             reads, combined into one haystack. -->
+        <input type="text" id="calls-search" class="calls-search" placeholder="Search calls…">
+
         <div class="table-card">
-          <table class="calls-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Caller</th>
-                <th>Msgs</th>
-                <th>Duration</th>
-                <th>Topics</th>
-              </tr>
-              <tr class="filter-row">
-                <th><input data-filter="time" placeholder="Filter time…"></th>
-                <th><input data-filter="caller_number" placeholder="Filter caller…"></th>
-                <th><input data-filter="message_count" placeholder="Min msgs" inputmode="numeric"></th>
-                <th><input data-filter="duration_seconds" placeholder="Min sec" inputmode="numeric"></th>
-                <th><input data-filter="topics" placeholder="Filter topic…"></th>
-              </tr>
-            </thead>
-            <tbody id="calls-tbody"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table class="calls-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Caller</th>
+                  <th>Duration</th>
+                  <th>Topics</th>
+                  <th></th>
+                </tr>
+                <tr class="filter-row">
+                  <th><input data-filter="time" placeholder="Filter time…"></th>
+                  <th><input data-filter="caller_number" placeholder="Filter caller…"></th>
+                  <th><input data-filter="duration_seconds" placeholder="Min sec" inputmode="numeric"></th>
+                  <th><input data-filter="topics" placeholder="Filter topic…"></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="calls-tbody"></tbody>
+            </table>
+          </div>
           <p class="empty-state" id="calls-empty" hidden>No calls logged yet.</p>
         </div>
       </section>
 
       <section id="view-clients" class="view">
-        <div class="clients-shell">
+        <div class="clients-shell" data-step="list">
           <div class="clients-pane pane-a">
             <div class="pane-header">
               <span>Clients</span>
@@ -121,8 +141,6 @@
       <button class="drawer-tab active" data-tab="transcript">Transcript</button>
       <button class="drawer-tab" data-tab="todos">To-Do</button>
       <button class="drawer-tab" data-tab="notes">Notes</button>
-      <button class="drawer-tab" data-tab="chat">Chat</button>
-      <button class="drawer-tab" data-tab="files">Files</button>
     </div>
 
     <div class="drawer-body">
@@ -138,25 +156,47 @@
         </form>
       </div>
 
-      <div class="drawer-pane" id="pane-chat">
-        <div class="chat-thread" id="chat-thread">
-          <p class="chat-hint">Search this conversation's transcript — e.g. try "quote" or "photo".</p>
-        </div>
-        <form class="chat-form" id="chat-form">
-          <input type="text" id="chat-input" placeholder="Search this conversation…" autocomplete="off">
-          <button type="submit">Search</button>
-        </form>
-      </div>
-
-      <div class="drawer-pane" id="pane-files">
-        <div class="upload-box">
-          <input type="file" id="upload-input">
-          <button id="upload-btn">Upload</button>
-        </div>
-        <ul class="file-list" id="drawer-file-list"></ul>
-      </div>
     </div>
   </aside>
+
+  <!-- Schedule an appointment. Saves to tasks.scheduled_at and, if
+       calendar_service.py is configured, upserts a Google Calendar event. -->
+  <dialog class="sheet" id="schedule-sheet">
+    <div class="sheet-inner">
+      <header class="sheet-head">
+        <h3>Schedule appointment</h3>
+        <button type="button" class="btn-icon" id="schedule-close" aria-label="Close">✕</button>
+      </header>
+
+      <p class="sheet-sub" id="schedule-sheet-task"></p>
+      <p class="sheet-detected-note" id="schedule-detected-note" hidden></p>
+
+      <div class="sheet-fields">
+        <label class="field"><span>Date</span><input type="date" id="schedule-date"></label>
+        <label class="field"><span>Time</span><input type="time" id="schedule-time" step="900"></label>
+        <label class="field"><span>Duration</span>
+          <select id="schedule-duration">
+            <option value="30">30 min</option>
+            <option value="60" selected>1 hour</option>
+            <option value="120">2 hours</option>
+          </select>
+        </label>
+        <label class="field field-wide"><span>Note</span>
+          <textarea id="schedule-note" rows="2" placeholder="Optional note for the tech…"></textarea>
+        </label>
+      </div>
+
+      <footer class="sheet-foot">
+        <button type="button" class="btn btn-ghost" id="schedule-clear" hidden>Clear</button>
+        <div class="sheet-foot-right">
+          <button type="button" class="btn btn-ghost" id="schedule-cancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="schedule-save">Save</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+  <div class="toast-host" id="toast-host" aria-live="polite"></div>
 
   <script src="/static/dashboard.js"></script>
 </body>

@@ -29,6 +29,9 @@ import re
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo
+
+from config import COMPANY_TIMEZONE
 
 from pydantic import (
     BaseModel,
@@ -453,6 +456,47 @@ class CustomerResponse(APIModel):
 # Call models
 # -------------------------------------------------------------------
 
+class TodoItem(APIModel):
+    """
+    One follow-up action item, as judged directly by the post-call
+    extraction LLM (see post_call_extraction.py) — not derived after the
+    fact by keyword/regex matching on the description text.
+
+    is_appointment and suggested_datetime are the model's own read of
+    whether this item is about scheduling/confirming an in-person visit and,
+    if the caller and agent settled on a specific date/time, what that is
+    (resolved against the call's real date the same way `availability` is).
+    The dashboard's Schedule sheet uses suggested_datetime only to pre-fill
+    itself — a human still has to click Save to actually book it.
+    """
+
+    description: str
+    is_appointment: bool = False
+    suggested_datetime: datetime | None = None
+
+    @field_validator("description")
+    @classmethod
+    def check_description(cls, description):
+        description = (description or "").strip()
+        if not description:
+            raise ValueError("todo_items description cannot be blank")
+        return description
+
+    @field_validator("suggested_datetime")
+    @classmethod
+    def localize_suggested_datetime(cls, value):
+        """
+        The extraction prompt asks for a plain "YYYY-MM-DDTHH:MM" (no
+        timezone) meant as company-local time — same convention as
+        dashboard.py's scheduled_at. Attach the zone explicitly rather than
+        letting it fall through as naive, which the database would
+        otherwise store as UTC and silently shift by several hours.
+        """
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=ZoneInfo(COMPANY_TIMEZONE))
+        return value
+
+
 class CallCreate(APIModel):
     """
     Request body for saving one completed and summarized call.
@@ -493,7 +537,7 @@ class CallCreate(APIModel):
     status: CallStatus = "completed"
 
     tags: list[str] | None = None
-    todo_items: list[str] | None = None
+    todo_items: list[TodoItem] | None = None
 
     @field_validator("call_id")
     @classmethod
@@ -537,14 +581,14 @@ class CallCreate(APIModel):
             caller_number
         )
 
-    @field_validator("tags", "todo_items")
+    @field_validator("tags")
     @classmethod
     def check_string_lists(
         cls,
         values,
     ):
         """
-        Clean tags and to-do items: strip each entry, drop blanks.
+        Clean tags: strip each entry, drop blanks.
         """
 
         return clean_string_list(
@@ -708,3 +752,5 @@ class TaskResponse(APIModel):
     status: TaskStatus
     created_at: datetime
     updated_at: datetime
+    # Set when the task is closed, nulled when reopened.
+    completed_at: datetime | None = None

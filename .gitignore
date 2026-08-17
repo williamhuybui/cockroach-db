@@ -22,6 +22,8 @@ tmp/
 certs/
 cockroach.zip
 ccloud.zip
+# Google service account key (Calendar integration)
+google-service-account.json
 # Uploaded caller files
 uploads/
 caller_names.json

@@ -1,0 +1,28 @@
+MOCK CALL C008: RETURNING CALLER — RESCHEDULE C003
+
+Call ID: C008
+Caller number: +14175550103
+Call started: 2026-08-06T15:45:00.000Z
+Previous call ID: C003
+
+ASSISTANT: Thank you for calling AM Construction Services. This call may be recorded for staff training and quality assurance. To help us serve everyone quickly, we try to keep calls to about 5 minutes — if we can't fully resolve your issue by then, I'll pass your details to a team member who will call you back. How can I help you today?
+
+CALLER: This is Sophia Nguyen. I need to change the time for my roof inspection at 900 Market Street.
+
+ASSISTANT: I see the inspection request for the older roof with curling shingles and granule loss. Are the property details and your email still correct?
+
+CALLER: Yes, nothing else has changed. I just cannot make the Tuesday window.
+
+ASSISTANT: What new day and time would work better?
+
+CALLER: Thursday between nine and eleven in the morning.
+
+ASSISTANT: To confirm, you want the inspection at 900 Market Street moved to Thursday between 9:00 AM and 11:00 AM, and there is still no active leak. Is that correct?
+
+CALLER: Yes, that is correct.
+
+ASSISTANT: I will pass the requested change to the scheduling team. They will confirm the updated appointment. Is there anything else I can help you with?
+
+CALLER: No, that is all. Thanks.
+
+ASSISTANT: You're welcome, Sophia. Goodbye.

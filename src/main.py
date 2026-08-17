@@ -20,6 +20,7 @@ from config import (
 )
 from greeting import greeting_twilio, greeting_openai
 from dashboard import register_dashboard
+import live_calls
 from database import (
     configure_database, get_database_transaction,
     save_transcript_turn, generate_call_id,
@@ -217,6 +218,12 @@ async def handle_media_stream(websocket: WebSocket):
                 cleaned_text,
             )
 
+            # stream_sid is read from the enclosing handle_media_stream scope
+            # (receive_from_twilio sets it via its own `nonlocal`), so this
+            # always sees the current value. Fired before the DB write so the
+            # live view keeps working even if CockroachDB is unreachable.
+            live_calls.add_turn(stream_sid, speaker, cleaned_text)
+
             if csv_writer and csv_file and not csv_file.closed:
                 try:
                     csv_writer.writerow(
@@ -276,6 +283,11 @@ async def handle_media_stream(websocket: WebSocket):
                         stream_sid = data['start']['streamSid']
                         caller_number = data['start'].get('customParameters', {}).get('caller_number', 'unknown')
 
+                        # Fires before the generate_call_id DB round trip below (~485ms),
+                        # so the dashboard's "someone is calling now" card isn't delayed
+                        # by it.
+                        live_calls.start_call(stream_sid, caller_number)
+
                         try:
                             call_id = await asyncio.to_thread(generate_call_id)
                             logger.info(
@@ -285,6 +297,7 @@ async def handle_media_stream(websocket: WebSocket):
                                         call_id,
                                         caller_number,
                             )
+                            live_calls.set_call_id(stream_sid, call_id)
                         except Exception:
                             # Don't let a CockroachDB hiccup take down the call. The
                             # conversation still works; its transcript just won't be
@@ -297,6 +310,7 @@ async def handle_media_stream(websocket: WebSocket):
                             call_id = None
 
                         call_started_at = datetime.now(timezone.utc)
+                        live_calls.set_started_at(stream_sid, call_started_at)
 
                         if VERBOSE:
                             logger.info(f"Incoming stream has started {stream_sid}")
@@ -318,6 +332,7 @@ async def handle_media_stream(websocket: WebSocket):
                                     "Returning caller matched: caller=%s customer_id=%s",
                                     caller_number, returning_customer["id"],
                                 )
+                                live_calls.set_returning_caller(stream_sid, returning_customer)
                                 await send_returning_caller_context(openai_ws, returning_customer)
 
                         safe_caller = caller_number.replace('+', '')
@@ -334,6 +349,12 @@ async def handle_media_stream(websocket: WebSocket):
                 if openai_ws.state.name == 'OPEN':
                     await openai_ws.close()
             finally:
+                # Authoritative end: this finally runs on every exit path out of
+                # this loop, whether the caller hung up, an error occurred, or the
+                # agent already ended it above. end_call() is idempotent, so it's
+                # safe to call again here even if one of the other end_call sites
+                # already fired for this stream_sid.
+                live_calls.end_call(stream_sid, "disconnected")
                 if csv_file:
                     csv_file.close()
 
@@ -360,6 +381,10 @@ async def handle_media_stream(websocket: WebSocket):
                         if event.get("item_id") and event["item_id"] != last_assistant_item:
                             response_start_timestamp_twilio = latest_media_timestamp
                             last_assistant_item = event["item_id"]
+                            # This branch only fires on the FIRST audio delta of a new
+                            # response item — already edge-detected — so this is safe
+                            # to call here rather than on every delta.
+                            live_calls.set_speaker(stream_sid, "assistant")
                             if SHOW_TIMING_MATH:
                                 logger.debug(f"Setting start timestamp for new response: {response_start_timestamp_twilio}ms")
 
@@ -372,6 +397,8 @@ async def handle_media_stream(websocket: WebSocket):
                         await save_conversation_turn("assistant", event.get('transcript', ''))
 
                     if event.get('type') == 'response.done':
+                        live_calls.set_speaker(stream_sid, "idle")
+
                         usage = event.get('response', {}).get('usage', {}) or {}
 
                         input_tokens = usage.get('input_tokens', '')
@@ -400,6 +427,13 @@ async def handle_media_stream(websocket: WebSocket):
                             )
                             await nudge_agent_to_wrap_up(openai_ws)
 
+                        live_calls.update_metrics(
+                            stream_sid,
+                            total_response_tokens,
+                            int(call_duration_seconds or 0),
+                            wrap_up_nudged,
+                        )
+
                         duration_hard_limit_hit = (
                             MAX_CALL_DURATION_SECONDS is not None
                             and call_duration_seconds is not None
@@ -419,7 +453,7 @@ async def handle_media_stream(websocket: WebSocket):
                         ]
 
                         if ending_call:
-                            await end_call_gracefully(websocket, openai_ws)
+                            await end_call_gracefully(websocket, openai_ws, mark_queue)
 
                         elif tool_calls:
                             for output_item in tool_calls:
@@ -437,14 +471,28 @@ async def handle_media_stream(websocket: WebSocket):
                                 if tool_name == 'end_call':
                                     logger.info("Agent requested end_call: %s", tool_args)
                                     ending_call = True
+                                    live_calls.end_call(stream_sid, tool_args.get("reason") or "agent_end_call")
                                     await send_tool_result(openai_ws, tool_call_id, {"status": "ending_call"})
 
+                            # Needed even for end_call: the model frequently returns the
+                            # function_call with NO accompanying audio/message in that
+                            # same response (confirmed in production logs), relying on
+                            # this follow-up turn to actually speak the goodbye line the
+                            # system prompt asks for ("say ONE short, warm goodbye line
+                            # right after"). Skipping this leaves a silent dead-air
+                            # hangup instead. The real mid-sentence-cutoff bug was
+                            # end_call_gracefully's fixed sleep, not this call — see
+                            # its docstring.
                             await openai_ws.send(json.dumps({"type": "response.create"}))
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
                     if event.get('type') == 'input_audio_buffer.speech_started':
                         if VERBOSE:
                             logger.info("Speech started detected.")
+                        # Above the last_assistant_item check so this fires even when
+                        # the agent isn't mid-response; barge_in flags the case where
+                        # the caller interrupted it.
+                        live_calls.set_speaker(stream_sid, "caller", barge_in=bool(last_assistant_item))
                         if last_assistant_item:
                             if VERBOSE:
                                 logger.info(f"Interrupting response with id: {last_assistant_item}")
@@ -466,7 +514,8 @@ async def handle_media_stream(websocket: WebSocket):
                     "instruction; closing the connection directly."
                 )
                 ending_call = True
-                await end_call_gracefully(websocket, openai_ws)
+                live_calls.end_call(stream_sid, "duration_cutoff")
+                await end_call_gracefully(websocket, openai_ws, mark_queue)
 
         async def handle_speech_started_event():
             """Handle interruption when the caller's speech starts."""
@@ -520,10 +569,19 @@ async def handle_media_stream(websocket: WebSocket):
                 extracted = await extract_call_summary(call_id)
                 if extracted:
                     await save_structured_call(call_id, caller_number, extracted)
+                    live_calls.set_summary(stream_sid, extracted)
+                else:
+                    live_calls.summary_failed(stream_sid)
             except Exception:
                 logger.exception(
                     "Post-call extraction/save failed for call_id=%s", call_id
                 )
+                live_calls.summary_failed(stream_sid)
+        else:
+            # No call_id (generate_call_id failed) or no usable caller_number —
+            # extraction never runs, so tell the live view not to wait on a
+            # summary that's never coming.
+            live_calls.summary_failed(stream_sid)
 
 async def send_initial_conversation_item(openai_ws, greeting_text):
     """Send initial conversation item if AI talks first."""
@@ -689,18 +747,37 @@ async def force_end_call_now(openai_ws):
     ))
     await openai_ws.send(json.dumps({"type": "response.create"}))
 
-async def end_call_gracefully(websocket, openai_ws):
+async def end_call_gracefully(websocket, openai_ws, mark_queue=None, max_wait_seconds=8.0):
     """
-    Give the goodbye line time to finish playing over the phone, then
-    close the media-stream connection.
+    Give the goodbye line time to actually finish playing over the phone,
+    then close the media-stream connection.
 
     Closing this WebSocket makes Twilio's <Connect><Stream> verb end —
     since nothing follows <Connect> in the TwiML, the call itself hangs up.
+
+    mark_queue holds one entry per audio chunk sent to Twilio that hasn't
+    been confirmed played back yet (send_mark appends, the 'mark' event
+    handler in receive_from_twilio pops) — waiting for it to drain means we
+    wait exactly as long as the goodbye line actually takes, short or long,
+    instead of a fixed guess. A fixed 1.5s sleep here used to cut a longer
+    goodbye off mid-sentence (and pointlessly delay a short one). Bounded by
+    max_wait_seconds in case a mark is ever dropped, so a call can't hang
+    open forever.
     """
-    # audio for the goodbye line was already streamed to Twilio in this
-    # same response, before response.done fired — this just gives it a
-    # moment to actually finish playing over the phone line.
-    await asyncio.sleep(1.5)
+    if mark_queue is not None:
+        waited = 0.0
+        poll_interval = 0.1
+        while mark_queue and waited < max_wait_seconds:
+            await asyncio.sleep(poll_interval)
+            waited += poll_interval
+    else:
+        # No mark_queue available (e.g. called before the stream started) —
+        # fall back to the old fixed guess rather than not waiting at all.
+        await asyncio.sleep(1.5)
+
+    # Small buffer for the final packet's network transit + actual playback
+    # on the caller's phone after Twilio confirms the last mark.
+    await asyncio.sleep(0.5)
 
     if openai_ws.state.name == 'OPEN':
         await openai_ws.close()

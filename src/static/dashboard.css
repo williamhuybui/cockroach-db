@@ -1,20 +1,5 @@
-:root {
-  color-scheme: dark;
-  --page: #0d0d0d;
-  --surface-1: #1a1a19;
-  --surface-2: #202020;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted: #898781;
-  --hairline: #2c2c2a;
-  --border: #383835;
-  --accent: #3987e5;
-  --accent-wash: rgba(57, 135, 229, 0.12);
-  --good: #0ca30c;
-  --warning: #fab219;
-  --serious: #ec835a;
-  --critical: #d03b3b;
-}
+/* Design tokens, the .btn system, .pill and the shared keyframes live in
+ * ui.css, which is loaded before this file. */
 
 * { box-sizing: border-box; }
 
@@ -24,7 +9,10 @@ html, body {
   background: var(--page);
   color: var(--text-primary);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-text-size-adjust: 100%;
 }
+
+img, svg { display: block; max-width: 100%; }
 
 button, input {
   font-family: inherit;
@@ -37,19 +25,21 @@ a { color: inherit; text-decoration: none; }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 1fr;
   grid-template-rows: 60px 1fr;
   grid-template-areas:
-    "topbar topbar"
-    "sidebar content";
+    "topbar"
+    "content";
   height: 100vh;
+  height: 100dvh; /* wins where supported; avoids iOS URL-bar resize jumps */
 }
 
 .topbar {
   grid-area: topbar;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 24px;
   padding: 0 20px;
   border-bottom: 1px solid var(--hairline);
   background: var(--surface-1);
@@ -74,7 +64,7 @@ a { color: inherit; text-decoration: none; }
 
 .brand:hover .brand-sub { color: var(--text-secondary); }
 
-.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-right { display: flex; align-items: center; gap: 16px; justify-self: end; }
 
 .home-link {
   font-size: 13px;
@@ -89,22 +79,20 @@ a { color: inherit; text-decoration: none; }
   font-variant-numeric: tabular-nums;
 }
 
-.sidebar {
-  grid-area: sidebar;
-  background: var(--surface-1);
-  border-right: 1px solid var(--hairline);
-  padding: 16px 10px;
+.topbar-nav {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-self: center;
   gap: 4px;
 }
 
 .nav-item {
-  text-align: left;
+  display: inline-flex;
+  align-items: center;
   background: transparent;
   border: none;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 14px;
   font-size: 14px;
   color: var(--text-secondary);
   cursor: pointer;
@@ -116,7 +104,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--accent-wash);
   color: var(--text-primary);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .content {
@@ -145,7 +133,9 @@ a { color: inherit; text-decoration: none; }
 
 .stat-tiles {
   display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  /* auto-fit does the responsive work on its own: 4-up on desktop, 2-up on a
+     phone, 1 when very narrow — no media query needed for this element. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -181,8 +171,15 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden;
 }
 
+.action-items-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+}
+
 .action-items-toggle {
-  width: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -195,6 +192,8 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
   text-align: left;
 }
+
+.action-items-done-toggle { flex-shrink: 0; }
 
 .action-items-toggle .caret { color: var(--text-muted); transition: transform 0.15s ease; font-size: 11px; }
 .action-items-card.collapsed .caret { transform: rotate(-90deg); }
@@ -217,26 +216,112 @@ a { color: inherit; text-decoration: none; }
    one wide grid cell and left the rest of the row empty. */
 #action-items-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
   gap: 10px;
 }
 
+/* One card per task (not per call) — each has its own id and status in the
+   tasks table, which is what makes the close button persistable. */
 .action-item-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   background: var(--surface-2);
   border: 1px solid var(--hairline);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: var(--radius);
+  padding: 12px 14px;
   cursor: pointer;
+  animation: rise 0.2s ease both;
 }
 
 .action-item-card:hover { border-color: var(--accent); }
 
-.action-item-card .caller { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
-.action-item-card .time { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
-.action-item-card .task { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; }
-.action-item-card .task::before { content: "• "; color: var(--warning); }
+.action-item-card.done { opacity: 0.6; border-style: dashed; }
+.action-item-card.done .ai-task { text-decoration: line-through; color: var(--text-muted); }
+
+/* Optimistic close: collapse before the request resolves, reverted on error. */
+.action-item-card.closing {
+  opacity: 0;
+  transform: scale(0.97);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.ai-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.ai-who { display: flex; flex-direction: column; min-width: 0; }
+.ai-caller { font-weight: 600; font-size: 14px; }
+.ai-phone { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.ai-close { flex-shrink: 0; }
+.action-item-card:not(.done) .ai-close:hover { color: var(--good); }
+
+.ai-task {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.ai-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ai-time { font-size: 11px; color: var(--text-muted); }
+
+.ai-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+
+/* ---------- toast ---------- */
+
+.toast-host {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Clears the mobile bottom tab bar and the home-bar inset. */
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 40;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.75);
+  animation: rise 0.2s ease both;
+  pointer-events: auto;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+.toast-action {
+  background: transparent;
+  border: none;
+  color: var(--accent-bright);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.toast-action:hover { text-decoration: underline; }
 
 /* ---------- table ---------- */
+
+/* Hidden on desktop; shown only ≤860px, once the filter row is hidden too. */
+.calls-search {
+  display: none;
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
 
 .table-card {
   background: var(--surface-1);
@@ -245,11 +330,26 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden;
 }
 
+/* .table-card keeps overflow:hidden for the rounded corners; this inner
+   wrapper is what actually scrolls, so the table is scrollable rather than
+   clipped between 861px and ~1100px, before it converts to cards at 860. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .calls-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
+
+.calls-table td.actions { width: 1%; white-space: nowrap; text-align: right; }
+
+.rerun-btn.spinning { animation: spin 0.8s linear infinite; }
+
+.delete-call-btn { margin-left: 2px; }
+.delete-call-btn:hover { color: var(--critical); }
 
 .calls-table th {
   text-align: left;
@@ -335,19 +435,23 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 6px 0;
+  padding: 8px 0;
   font-size: 13px;
+  border-bottom: 1px solid var(--hairline);
 }
 
-.todo-item input[type="checkbox"] { margin-top: 2px; accent-color: var(--accent); }
+.todo-item:last-child { border-bottom: none; }
+
+.todo-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
 .todo-item .task { color: var(--text-primary); }
+.todo-item.done { opacity: 0.65; }
 .todo-item.done .task { text-decoration: line-through; color: var(--text-muted); }
+.todo-item:not(.done) .todo-check:hover { color: var(--good); }
 .todo-item .source {
   display: block;
   color: var(--text-muted);
   font-size: 12px;
-  margin-top: 2px;
 }
 
 .file-row {
@@ -488,7 +592,9 @@ a { color: inherit; text-decoration: none; }
 
 .drawer.open { transform: translateX(0); }
 
-.drawer.fullscreen { width: 100vw; }
+/* 100vw includes the scrollbar's width, which causes a stray horizontal
+   scrollbar on desktop even when the drawer itself never overflows. */
+.drawer.fullscreen { width: 100%; }
 
 .drawer-header {
   display: flex;
@@ -575,12 +681,19 @@ a { color: inherit; text-decoration: none; }
   padding: 0 3px;
   margin-left: 4px;
   border-radius: 4px;
-  opacity: 0;
+  /* Visible by default — a device with no hover (any touchscreen) must never
+     have this permanently unreachable. Only devices that truly have hover
+     get the hide-until-hover treatment, below. */
+  opacity: 0.55;
   transition: opacity 0.12s ease;
 }
 
-.msg:hover .msg-delete { opacity: 1; }
 .msg-delete:hover { color: var(--critical); background: var(--surface-2); }
+
+@media (hover: hover) and (pointer: fine) {
+  .msg-delete { opacity: 0; }
+  .msg:hover .msg-delete { opacity: 1; }
+}
 
 .caller-edit-form {
   display: flex;
@@ -747,6 +860,15 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
 }
 
+.pane-header-left { display: flex; align-items: center; gap: 6px; }
+
+/* Only meaningful in the ≤860px wizard layout — see .clients-shell there. */
+.pane-back { color: var(--text-secondary); }
+
+@media (min-width: 861px) {
+  .pane-back { display: none; }
+}
+
 .pane-header button {
   background: var(--accent);
   border: none;
@@ -875,6 +997,7 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
 }
 
+.pane-c-header-top { display: flex; align-items: center; gap: 6px; }
 .pane-c-header .conv-title { font-size: 14px; font-weight: 600; }
 .pane-c-header .conv-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
@@ -889,3 +1012,447 @@ a { color: inherit; text-decoration: none; }
 .pane-c-body { padding: 14px 16px; flex: 1; overflow-y: auto; }
 .pane-c-view { display: none; }
 .pane-c-view.active { display: block; }
+
+/* ---------- sheet (native <dialog>) ----------
+   Using <dialog> gets focus trapping, Esc-to-close and ::backdrop for free,
+   with no library and no build step. */
+
+.sheet {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: 440px;
+  width: calc(100% - 32px);
+  color: var(--text-primary);
+}
+
+.sheet::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.sheet-inner {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: sheet-up 0.2s ease both;
+}
+
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sheet-head h3 { margin: 0; font-size: 17px; }
+
+.sheet-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+
+.sheet-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-wide { grid-column: 1 / -1; }
+.field > span { font-size: 11px; color: var(--text-muted); }
+
+.field input,
+.field select,
+.field textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.field textarea { resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: 1px solid var(--accent); }
+
+/* Shown when a date/time was parsed out of the call's extracted availability
+   (see extractDateHint in dashboard.js) rather than defaulted to a preset. */
+.sheet-detected-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent-bright);
+  background: var(--accent-wash);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.sheet-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sheet-foot-right { display: flex; gap: 8px; }
+
+/* ---------- chat pane header (Clear button) ---------- */
+
+.chat-pane-head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+
+/* =====================================================================
+   Responsive layer
+   ===================================================================== */
+
+/* ---------- 1100px: clients 3-pane -> 2-col + stacked transcript ---------- */
+
+@media (max-width: 1100px) and (min-width: 861px) {
+  .clients-shell {
+    grid-template-columns: 240px 1fr;
+    grid-template-areas:
+      "a b"
+      "c c";
+    grid-template-rows: minmax(280px, 42vh) 1fr;
+  }
+
+  .clients-shell .pane-a { grid-area: a; }
+  .clients-shell .pane-b { grid-area: b; }
+  .clients-shell .pane-c { grid-area: c; }
+}
+
+/* ---------- 860px: the primary breakpoint (matches landing.css) ---------- */
+
+@media (max-width: 860px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "topbar"
+      "content";
+  }
+
+  /* Grid doesn't stack cleanly at this width (brand/clock fight the centered
+     nav for space) — go full column instead: brand on top, nav in the
+     middle, clock last ("move the timer down"), each its own full-width row. */
+  .topbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 10px 14px;
+  }
+
+  .topbar-nav {
+    justify-content: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topbar-nav::-webkit-scrollbar { display: none; }
+
+  .nav-item { flex: none; min-height: var(--tap); white-space: nowrap; }
+
+  .topbar-right { justify-content: center; font-size: 12px; }
+
+  .brand-sub, .home-link { display: none; }
+
+  .content { padding: 16px 14px calc(24px + env(safe-area-inset-bottom)); }
+
+  /* stat tiles: auto-fit already goes 2-up here on its own (no rule needed) */
+
+  /* calls table -> card list, driven by data-label (see renderTable in JS) */
+  .calls-search { display: block; }
+
+  .calls-table thead { display: none; } /* hides the filter row too */
+
+  .calls-table,
+  .calls-table tbody,
+  .calls-table tr,
+  .calls-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .calls-table tbody tr {
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "caller actions"
+      "meta   actions"
+      "topics topics";
+    gap: 4px 10px;
+  }
+
+  .calls-table td { padding: 0; border: none; vertical-align: unset; }
+
+  .calls-table td.caller { grid-area: caller; font-size: 15px; }
+
+  .calls-table td.time,
+  .calls-table td.dur {
+    grid-area: meta;
+    display: inline;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .calls-table td.time::after { content: " · "; }
+
+  .calls-table td.num::before { content: attr(data-label) ": "; color: var(--text-muted); }
+
+  .calls-table td.topics { grid-area: topics; margin-top: 4px; }
+  .calls-table td.actions { grid-area: actions; align-self: start; width: auto; }
+
+  /* clients: one pane at a time, stepped via data-step (see setClientsStep) */
+  .clients-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas: "pane";
+    height: auto;
+    min-height: 60dvh;
+  }
+
+  .clients-shell > .clients-pane { display: none; }
+
+  /* .clients-pane's base rule is already display:flex, so re-showing as
+     flex (not block) keeps each pane's internal layout intact. */
+  .clients-shell[data-step="list"] > .pane-a,
+  .clients-shell[data-step="client"] > .pane-b,
+  .clients-shell[data-step="conv"] > .pane-c {
+    display: flex;
+  }
+
+  /* drawer -> bottom sheet */
+  .drawer {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 88dvh;
+    max-height: 88dvh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: translateY(100%);
+    box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Must override the base rule's translateX(0) — that alone won't undo a
+     translateY, so without this the sheet would never actually open. */
+  .drawer.open { transform: translateY(0); }
+
+  .drawer.fullscreen { width: 100%; height: 100dvh; border-radius: 0; }
+
+  /* Grab handle, purely decorative. */
+  .drawer::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border);
+    margin: 8px auto 0;
+  }
+
+  .drawer-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .drawer-tabs::-webkit-scrollbar { display: none; }
+
+  .drawer-tab { min-height: var(--tap); white-space: nowrap; }
+
+  .drawer-body { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+
+  /* sheet (schedule dialog) -> bottom sheet too, for the same reason */
+  .sheet {
+    max-width: none;
+    width: 100%;
+    margin: auto 0 0;
+  }
+
+  .sheet-inner {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ---------- 520px: tightened type/padding on small phones ---------- */
+
+@media (max-width: 520px) {
+  .stat-value { font-size: 22px; }
+  .stat-tile { padding: 12px 14px; }
+  .sheet-fields { grid-template-columns: 1fr; }
+}
+
+/* ---------- touch targets: the correct axis is pointer, not width ---------- */
+
+@media (pointer: coarse) {
+  .nav-item,
+  .drawer-tab,
+  .drawer-close,
+  .drawer-expand,
+  .caller-menu-btn,
+  .pane-header button,
+  .pane-back,
+  .file-rename-btn,
+  .btn-icon,
+  .caller-menu button {
+    min-height: var(--tap);
+    min-width: var(--tap);
+  }
+
+  /* .msg-delete stays its own compact size (handled above) rather than
+     ballooning to 44px inline with transcript text. */
+  .msg-delete { padding: 6px 8px; font-size: 12px; }
+}
+
+/* =====================================================================
+   Live calls
+   ===================================================================== */
+
+.live-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.live-header h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+
+.pill-muted { background: var(--surface-3); color: var(--text-muted); border-color: transparent; }
+
+/* ---------- idle state (the most-seen state, so it gets real design) ---------- */
+
+.standby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 90px 20px;
+  text-align: center;
+}
+
+.standby-orb {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-wash) 0%, transparent 70%);
+  animation: standby-breathe 4s ease-in-out infinite;
+}
+
+@keyframes standby-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+.standby-text { font-size: 15px; color: var(--text-secondary); margin: 0; }
+.standby-sub { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+/* ---------- active call card ---------- */
+
+.live-card {
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  animation: rise 0.25s ease both;
+}
+
+.live-card.ended { filter: grayscale(0.4); opacity: 0.85; }
+
+.live-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.live-onair { animation: pulse 1.4s ease-out infinite; }
+
+.live-who { display: flex; flex-direction: column; margin-right: auto; }
+.live-caller { font-weight: 600; font-size: 15px; }
+.live-phone { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.live-duration { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--text-secondary); }
+
+/* facing VU meters — the centerpiece. No real audio access; each bar runs its
+   own duration/delay (set below) so the pair never looks like a metronome. */
+.live-vu-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 12px 0 16px;
+}
+
+.live-vu-side { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.live-vu-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.live-vu-caption { font-size: 12px; color: var(--text-secondary); min-width: 140px; text-align: center; }
+
+.vu { display: flex; align-items: flex-end; gap: 3px; height: 36px; opacity: 0.3; transition: opacity 0.2s ease; }
+.vu.active { opacity: 1; }
+
+.vu i {
+  width: 4px;
+  height: 18%;
+  border-radius: 2px;
+  animation: vu 1s ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+.vu.active i { animation-play-state: running; }
+.vu[data-role="caller"] i { background: var(--good); }
+.vu[data-role="assistant"] i { background: var(--accent-bright); }
+
+.vu i:nth-child(1) { animation-duration: 0.6s; animation-delay: 0s; }
+.vu i:nth-child(2) { animation-duration: 0.75s; animation-delay: 0.1s; }
+.vu i:nth-child(3) { animation-duration: 0.5s; animation-delay: 0.05s; }
+.vu i:nth-child(4) { animation-duration: 0.9s; animation-delay: 0.15s; }
+.vu i:nth-child(5) { animation-duration: 0.65s; animation-delay: 0.08s; }
+
+/* Brief flash when the caller interrupts the assistant mid-response — the
+   detail that actually sells "this is live", since it happens constantly on
+   real calls. */
+.vu.barge { animation: barge-flash 0.6s ease-out; }
+
+@keyframes barge-flash {
+  0% { filter: drop-shadow(0 0 6px var(--critical)); }
+  100% { filter: drop-shadow(0 0 0 transparent); }
+}
+
+.live-feed {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 2px;
+  margin-bottom: 14px;
+}
+
+.live-meters { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.live-meter { flex: 1; min-width: 120px; }
+.live-meter-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+.live-meter-track { height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.live-meter-fill { height: 100%; transition: width 0.3s ease, background 0.3s ease; }
+.live-meter-good { background: var(--good); }
+.live-meter-warn { background: var(--warning); }
+.live-meter-critical { background: var(--critical); }
+
+.live-summary {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.live-summary-head { display: flex; align-items: center; gap: 8px; }
+.live-summary p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.live-summary-todos { display: flex; gap: 6px; flex-wrap: wrap; }

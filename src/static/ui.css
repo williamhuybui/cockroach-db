@@ -1,0 +1,208 @@
+/* Shared UI primitives for the dashboard.
+ *
+ * The tokens, .btn system, .pill and the pulse/rise/bounce keyframes are
+ * duplicated from landing.css, which stays the source of truth for the visual
+ * language. They're copied rather than extracted so the shipped marketing page
+ * carries no risk from dashboard work — if you change a value here, change it
+ * there too.
+ *
+ * Loaded BEFORE dashboard.css, so dashboard.css can override anything.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces + text */
+  --page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #202020;
+  --surface-3: #262624;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --hairline: #2c2c2a;
+  --border: #383835;
+
+  /* accents */
+  --accent: #3987e5;
+  --accent-bright: #63a6f2;
+  --accent-wash: rgba(57, 135, 229, 0.14);
+  --roof: #fab219;
+  --roof-wash: rgba(250, 178, 25, 0.14);
+
+  /* status. --warning aliases --roof so both existing names keep resolving. */
+  --good: #2fbf71;
+  --warning: var(--roof);
+  --serious: #ec835a;
+  --critical: #d03b3b;
+
+  /* geometry */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --tap: 44px;
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover { transform: translateY(-1px); }
+.btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-bright); }
+
+.btn-ghost { background: transparent; border-color: var(--border); color: var(--text-primary); }
+.btn-ghost:hover { border-color: var(--accent); }
+
+.btn-danger { background: transparent; border-color: var(--border); color: var(--critical); }
+.btn-danger:hover { border-color: var(--critical); }
+
+.btn-sm { padding: 8px 14px; font-size: 13px; }
+
+/* Square icon button. Grows to a real touch target on touch devices. */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-icon:hover { background: var(--surface-3); color: var(--text-primary); }
+
+/* ---------- chips ---------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pill-accent { border-color: transparent; background: var(--accent-wash); color: var(--accent-bright); }
+.pill-roof { border-color: transparent; background: var(--roof-wash); color: var(--roof); }
+.pill-good { border-color: transparent; background: rgba(47, 191, 113, 0.14); color: var(--good); }
+.pill-critical { border-color: transparent; background: rgba(208, 59, 59, 0.16); color: var(--critical); }
+
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--roof);
+  background: var(--roof-wash);
+  padding: 6px 12px;
+  border-radius: 100px;
+}
+
+/* ---------- live-status dot ---------- */
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 0 0 rgba(47, 191, 113, 0.6);
+  animation: pulse 1.8s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(47, 191, 113, 0.55); }
+  70% { box-shadow: 0 0 0 8px rgba(47, 191, 113, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(47, 191, 113, 0); }
+}
+
+/* ---------- typing indicator ---------- */
+
+.typing-dots { display: inline-flex; gap: 3px; padding: 10px 14px; }
+
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: bounce 1.1s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ---------- entry / motion ---------- */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Voice-activity bars. Each bar is given a different duration and delay at the
+ * call site so the group never reads as a metronome. */
+@keyframes vu {
+  0%, 100% { height: 18%; }
+  50% { height: 92%; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ---------- reduced motion ----------
+ * Must stay LAST so it wins. Animations are neutralised rather than removed,
+ * and the VU bars are parked at a mid height so they read as a static meter
+ * instead of a frozen frame. */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .btn:hover { transform: none; }
+  .vu i { height: 40% !important; }
+  .dot { box-shadow: 0 0 0 3px rgba(47, 191, 113, 0.25) !important; }
+}

@@ -26,6 +26,15 @@ Every file uses `IF NOT EXISTS`, so running it again is safe and does nothing.
 | `002_calls.sql` | `calls`, plus the `call_id_sequence` that mints its `C001`-style key | `customers`, itself (`previous_call_id`) |
 | `003_transcripts.sql` | `transcripts` | — (`call_id` is intentionally not an FK) |
 | `004_tasks.sql` | `tasks` | `customers` |
+| `005_tasks_completed_at.sql` | alters `tasks` — adds `completed_at` | `tasks` |
+| `006_tasks_scheduling.sql` | alters `tasks` — adds `scheduled_at`, `calendar_event_id` | `tasks` |
+| `007_customers_name_locked.sql` | alters `customers` — adds `name_is_manual` | `customers` |
+| `008_tasks_appointment_fields.sql` | alters `tasks` — adds `is_appointment`, `suggested_datetime` | `tasks` |
+
+Note that `001` and `004` declare their indexes **inline** inside
+`CREATE TABLE`, so re-running them will never add an index to a table that
+already exists. Add new indexes as standalone `CREATE INDEX IF NOT EXISTS`
+statements in a new numbered file.
 
 ## Changing an existing table
 

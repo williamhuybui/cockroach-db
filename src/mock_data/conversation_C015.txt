@@ -1,0 +1,36 @@
+MOCK CALL C015: RETURNING CALLER — FOLLOW-UP TO C004
+
+Call ID: C015
+Caller number: +14175550104
+Call started: 2026-08-14T12:05:00.000Z
+Previous call ID: C004
+
+ASSISTANT: Thank you for calling AM Construction Services. This call may be recorded for staff training and quality assurance. To help us serve everyone quickly, we try to keep calls to about 5 minutes — if we can't fully resolve your issue by then, I'll pass your details to a team member who will call you back. How can I help you today?
+
+CALLER: This is Jordan Lee following up on the emergency leak at 100 Demo Lane. The crew installed a tarp, but I need to report two changes.
+
+ASSISTANT: I see the earlier urgent report near the chimney, including the bedroom ceiling, recessed light, hallway stain, and wet attic insulation. Are your address and contact details still the same?
+
+CALLER: Yes. The tarp stopped the active drip, but the bedroom ceiling is still bowed, and a second damp spot has appeared farther down the hallway.
+
+ASSISTANT: Is anyone going into the bowed area, and is the bedroom circuit still turned off?
+
+CALLER: We have kept the room closed, and the breaker is still off.
+
+ASSISTANT: Please continue staying clear of the bowed ceiling. Has any material fallen, or is there new water near another fixture?
+
+CALLER: Nothing has fallen. The new hallway spot is not close to a light.
+
+ASSISTANT: Do you have a confirmed time for the permanent repair follow-up, or are you still waiting?
+
+CALLER: I am still waiting for confirmation. I can be home today after one.
+
+ASSISTANT: I will update the existing case with the bowed ceiling, new hallway spot, and your availability today after 1:00 PM. I will also request confirmation of the permanent-repair follow-up.
+
+CALLER: Please keep jordan.lee@example.com on the request.
+
+ASSISTANT: I have kept that email and marked this as a high-priority follow-up. Is there anything else I can help you with?
+
+CALLER: No, those are the only updates.
+
+ASSISTANT: They are documented. The team will contact you. Goodbye.

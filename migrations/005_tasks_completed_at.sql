@@ -1,0 +1,15 @@
+-- Adds the completion timestamp the dashboard writes when an action item is
+-- closed. Depends on: tasks (004_tasks.sql).
+--
+-- Per migrations/README.md, 004_tasks.sql's CREATE TABLE was updated to declare
+-- completed_at as well, so a fresh database and an existing one converge.
+--
+-- `status` and `completed_at` are kept in lockstep by the writer (see
+-- api_update_action_item in src/dashboard.py): closing sets both, reopening
+-- nulls the timestamp, so the column can never disagree with the status.
+--
+-- NOTE for whoever adds the next index to `tasks`: 004 declares its indexes
+-- INLINE inside CREATE TABLE, so re-running 004 will never add an index to a
+-- table that already exists. New indexes must be standalone
+-- CREATE INDEX IF NOT EXISTS statements in a numbered file like this one.
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL;

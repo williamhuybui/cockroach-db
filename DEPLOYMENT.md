@@ -183,6 +183,12 @@ TWILIO_AUTH_TOKEN=<TWILIO_AUTH_TOKEN>
 TWILIO_PHONE_NUMBER=<TWILIO_PHONE_NUMBER>
 GROQ_API_KEY=<GROQ_API_KEY>
 LOG_LEVEL=INFO
+# Disables POST /api/live/simulate (the fake-call driver used to test the
+# Live tab without dialing in). It only ever touches the in-memory
+# live_calls registry — never the database — but it's still an
+# unauthenticated POST that fabricates a fake call, so turn it off here
+# rather than relying on the URL staying unknown.
+LIVE_SIMULATE_ENABLED=0
 ```
 
 Rules:

@@ -85,11 +85,13 @@ async def update_task(
         cursor = await connection.execute(
             """
             UPDATE tasks
-            SET status = %s, updated_at = now()
+            SET status = %s,
+                completed_at = CASE WHEN %s = 'done' THEN now() ELSE NULL END,
+                updated_at = now()
             WHERE id = %s
             RETURNING *
             """,
-            (update.status, task_id),
+            (update.status, update.status, task_id),
         )
         row = await cursor.fetchone()
 

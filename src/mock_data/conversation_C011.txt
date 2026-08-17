@@ -1,0 +1,39 @@
+MOCK CALL C011: CUSTOMER COMPLAINT AND MANAGER REQUEST
+
+Call ID: C011
+Caller number: +14175550111
+Call started: 2026-08-09T16:00:00.000Z
+
+ASSISTANT: Thank you for calling AM Construction Services. This call may be recorded for staff training and quality assurance. To help us serve everyone quickly, we try to keep calls to about 5 minutes — if we can't fully resolve your issue by then, I'll pass your details to a team member who will call you back. How can I help you today?
+
+CALLER: I need to speak with a manager. Your company repaired my porch roof, but it leaked again last night, and there were nails left near my driveway.
+
+ASSISTANT: I'm sorry about both the returning leak and the debris. No manager is available to transfer to right now, but I can document this for a manager callback. Is water entering now?
+
+CALLER: Not right now because the rain stopped. During the storm it dripped near the porch door.
+
+ASSISTANT: Please keep people away from any nails or sharp debris. May I have your full name and property address?
+
+CALLER: Patricia Green, 500 Walnut Street, Springfield, Missouri 65806.
+
+ASSISTANT: When was the repair completed, and is the new leak in the same location?
+
+CALLER: The work was finished about two weeks ago. The drip is within a foot of the old spot.
+
+ASSISTANT: About how much debris did you find near the driveway?
+
+CALLER: I found four roofing nails and a few sharp pieces of flashing. I picked them up with gloves.
+
+ASSISTANT: I will include that detail. Would you like the team to reinspect the porch roof as part of the follow-up?
+
+CALLER: Yes, and I want a manager to explain what happens next.
+
+ASSISTANT: I have requested both a reinspection and manager callback. When are you available?
+
+CALLER: Any weekday after one in the afternoon. My email is patricia.green@example.com.
+
+ASSISTANT: I have the returned porch leak, debris near the driveway, your request for reinspection, and a manager callback at 500 Walnut Street. Is there anything else I can help you with?
+
+CALLER: No, that is everything.
+
+ASSISTANT: Thank you for explaining what happened. A manager will follow up. Goodbye.

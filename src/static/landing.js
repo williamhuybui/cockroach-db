@@ -68,6 +68,9 @@
     if (!stageCard || !s) return;
     stageCard.style.opacity = 0;
     setTimeout(() => {
+      // Matches the CSS's .stage-card[data-step="N"] rules (landing.css) —
+      // tints the card to the same color as the step button that's active.
+      stageCard.dataset.step = i;
       stageCard.innerHTML = `
         <div class="stage-icon">${s.icon}</div>
         <h3>${s.title}</h3>
