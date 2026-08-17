@@ -5,7 +5,7 @@ PORT = 5050
 # The company's local timezone, used to interpret the date/time picked in
 # the dashboard's Schedule sheet before storing it (as UTC) and sending it
 # to Google Calendar. See src/calendar_service.py.
-COMPANY_TIMEZONE = "America/Los_Angeles"
+COMPANY_TIMEZONE = "America/Chicago"
 
 # Model
 TEMPERATURE = 0.7
