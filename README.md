@@ -1,4 +1,4 @@
-# The Front Desk That Never Sleeps
+# Openline AI — The front desk that never sleeps
 
 An AI phone agent with persistent memory, built for service businesses that can't staff their phones 24/7. When a homeowner's roof starts leaking, they call three roofers — whoever answers first usually wins the job. This agent answers every call, every time, and remembers every caller.
 
