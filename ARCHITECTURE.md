@@ -1,55 +1,28 @@
 # Architecture
 
-How a call moves through the system, end to end. See [`README.md`](README.md) for
-the repo layout and [`GETTING_STARTED.md`](GETTING_STARTED.md) /
-[`DEPLOYMENT.md`](DEPLOYMENT.md) for running it.
+OpenLine AI processes each call in two phases.
 
-```mermaid
-flowchart LR
-    caller["📞 Caller"]
-    operator["🧑‍💼 Operator\n(browser)"]
+## 1. Live call
 
-    voice["Twilio Voice"]
-    openai["OpenAI Realtime"]
-    groq["Groq\n(Llama 3.3)"]
-    gcal["Google Calendar"]
+Twilio and OpenAI Realtime are bridged for the duration of the call: caller audio streams to OpenAI, generated audio streams back to Twilio, and each completed caller or assistant transcript turn is saved to CockroachDB and broadcast to the dashboard.
 
-    backend["Backend"]
-    dashboard["Dashboard"]
+When the phone number matches an existing customer, FastAPI retrieves the customer's profile, most recent call, and open tasks from CockroachDB. That context is injected into the OpenAI Realtime session with instructions to confirm known information instead of collecting it again.
 
-    db[("Database")]
+## 2. Post-call extraction
 
-    caller <--> voice
-    voice <--> backend
-    backend <--> openai
-    backend <--> db
-    backend --> dashboard
-    dashboard -->|live updates| operator
+After disconnect, the completed transcript is sent to Groq for structured extraction. The result contains customer details, service problem, urgency, summary, tags, and follow-up tasks. FastAPI validates the result and writes it to the `customers`, `calls`, and `tasks` tables.
 
-    backend -->|transcript| groq
-    groq -->|summary + tasks| backend
+The operations dashboard displays live calls and completed records. Staff can review transcripts, manage customers and tasks, rerun extraction, and optionally create Google Calendar appointments.
 
-    operator <--> dashboard
-    dashboard <--> db
-    dashboard --> groq
-    dashboard --> gcal
-```
+## Runtime components
 
-## The two phases
+- **Twilio Voice:** incoming-call webhook and bidirectional media stream.
+- **Caddy:** TLS termination and HTTPS/WSS reverse proxy.
+- **FastAPI + Uvicorn:** voice bridge, caller context, APIs, extraction orchestration, and dashboard.
+- **OpenAI Realtime:** live speech-to-speech conversation and transcription events.
+- **Groq:** post-call structured-data extraction.
+- **CockroachDB:** persistent customers, calls, transcripts, and tasks.
+- **Google Calendar:** optional appointment synchronization.
+- **Amazon Lightsail:** production host for Caddy, FastAPI, and the dashboard.
 
-**1. Live call** — Twilio and the OpenAI Realtime API are bridged for the
-whole call: caller audio streams to OpenAI, the model's audio streams back to
-the caller, and the model can hang up when done. Each transcribed turn is
-saved and broadcast live so the dashboard updates in real time — no polling.
-
-If the caller's number matches an existing customer, their name/address, last
-call's problem, and any open tasks are given to the model with an explicit
-"confirm, don't re-ask" directive.
-
-**2. Post-call extraction** — once the call ends, the transcript is sent to a
-Groq-hosted Llama 3.3 model (kept separate from the live OpenAI session —
-cheaper, and it's fine if it's a beat slower) to pull out structured fields:
-name, address, problem, urgency, a summary, tags, and to-do items (each
-checked for whether it's an appointment, resolved to a real date if given).
-That result is saved and shown on the dashboard, which can also re-run
-extraction or book a real Google Calendar event.
+The high-level numbered flow is shown in [`docs/architecture.png`](docs/architecture.png).
