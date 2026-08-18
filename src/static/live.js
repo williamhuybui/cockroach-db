@@ -149,7 +149,7 @@
             ${s.urgency ? `<span class="pill ${urgent ? 'pill-critical' : 'pill-accent'}">${escapeHtml(s.urgency)}</span>` : ''}
           </div>
           ${s.summary ? `<p>${escapeHtml(s.summary)}</p>` : ''}
-          ${(s.todo_items || []).length ? `<div class="live-summary-todos">${s.todo_items.map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+          ${(s.todo_items || []).length ? `<div class="live-summary-todos">${s.todo_items.map((t) => `<span class="pill">${escapeHtml(t.description || '')}</span>`).join('')}</div>` : ''}
           ${call.call_id ? `<button type="button" class="btn btn-ghost btn-sm live-open-call" data-call-id="${escapeHtml(call.call_id)}">Open call</button>` : ''}
         </div>
       `;
@@ -183,6 +183,7 @@
           <div class="live-who">
             <span class="live-caller">${escapeHtml(liveCallerLabel(call))}</span>
             <span class="live-phone">${escapeHtml(formatPhone(call.caller_number))}</span>
+            ${call.returning && call.caller_address ? `<span class="live-address">📍 ${escapeHtml(call.caller_address)}</span>` : ''}
           </div>
           ${call.returning ? '<span class="pill pill-roof">Returning caller</span>' : ''}
           <span class="live-duration" id="live-duration-${call.stream_sid}">${formatDuration(call.duration_seconds || 0)}</span>

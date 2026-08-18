@@ -29,7 +29,7 @@ To run it locally, see [`GETTING_STARTED.md`](GETTING_STARTED.md).
   - `config.py`, `greeting.py` — server settings, system prompt, greeting text.
   - `static/` — landing page (`/`) and dashboard frontend.
 - `migrations/` — one `.sql` file per table; see [`migrations/README.md`](migrations/README.md) to add one.
-- `scripts/` — `migrate.py` (create the tables), `query.py` (ad-hoc SQL as a DataFrame), `send_message.py` (send an SMS).
+- `scripts/` — `migrate.py` (create the tables), `query.py` (ad-hoc SQL as a DataFrame), `backfill_call_extraction.py` (run post-call extraction for calls that never got one).
 - `mock_data/` — generators and CSV fixtures for the demo callers.
 - `ideation/` — pitch docs for candidate hackathon ideas.
 - `meeting/` — meeting notes and team roles.

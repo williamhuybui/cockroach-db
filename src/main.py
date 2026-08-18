@@ -18,14 +18,13 @@ from config import (
     VAD_TYPE, VAD_THRESHOLD, VAD_EAGERNESS, VAD_NOISE_REDUCTION,
     MAX_CONVERSATION_TOKENS, WRAP_UP_AT_PERCENT, MAX_CALL_DURATION_SECONDS,
 )
-from greeting import greeting_twilio, greeting_openai
+from greeting import greeting_twilio, greeting_openai, GREETING_TEXT
 from dashboard import register_dashboard
 import live_calls
 from database import (
     configure_database, get_database_transaction,
     save_transcript_turn, generate_call_id,
 )
-from sms_service import configure_sms_client
 from contextlib import asynccontextmanager
 from pydantic import ValidationError
 from api_models import CallCreate
@@ -51,15 +50,6 @@ os.makedirs(CALL_LOGS_DIR, exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("Missing DATABASE_URL.")
-
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_FROM_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-
-if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER:
-    configure_sms_client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER)
-else:
-    logger.warning("Twilio SMS credentials missing; post-call SMS is disabled.")
 
 # Create the shared CockroachDB "pool" (a no-op wrapper — see database.py's
 # configure_database docstring for why there's no real pool anymore).
@@ -134,8 +124,9 @@ async def handle_incoming_call(request: Request):
     response = VoiceResponse()
     if GREETING_MODE == "twilio":
         greeting_twilio(response)
-    else:
-        greeting_openai()
+    # else: openai mode adds no TwiML here — the greeting is delivered later,
+    # once the media stream connects (see initialize_session's call to
+    # send_initial_conversation_item, which uses greeting_openai()'s text).
 
     host = request.url.hostname
     connect = Connect()
@@ -340,6 +331,20 @@ async def handle_media_stream(websocket: WebSocket):
                         csv_file = open(csv_path, mode='w', newline='', encoding='utf-8')
                         csv_writer = csv.writer(csv_file)
                         csv_writer.writerow(["timestamp", "caller_number", "speaker", "text"])
+
+                        # In twilio mode the greeting is pure TwiML <Say> — it
+                        # plays before this WebSocket/OpenAI session even
+                        # exists, so it never reaches save_conversation_turn
+                        # through the normal transcript-event path (that only
+                        # fires for the model's own generated speech). Log it
+                        # here instead, now that call_id/caller_number exist,
+                        # so it still shows up as the call's opening turn in
+                        # the live feed and the saved transcript. In openai
+                        # mode this is skipped: the model's spoken reply to
+                        # the greeting instruction (see send_initial_conversation_item)
+                        # already becomes a normal turn once it's transcribed.
+                        if GREETING_MODE == "twilio":
+                            await save_conversation_turn("assistant", GREETING_TEXT)
                     elif data['event'] == 'mark':
                         if mark_queue:
                             mark_queue.pop(0)

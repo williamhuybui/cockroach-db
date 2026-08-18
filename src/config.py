@@ -57,7 +57,11 @@ HARD_CUTOFF_GRACE_SECONDS = 20
 # Post-call structured extraction (separate from the live conversation
 # model — runs once the call ends, over the saved transcript).
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# llama-3.3-70b-versatile was decommissioned by Groq (returns 404
+# model_not_found as of 2026-08) — openai/gpt-oss-120b is its replacement:
+# similar-size open-weight model, confirmed to support response_format
+# json_object the same way.
+GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_REQUEST_TIMEOUT_SECONDS = 20
 
 # Prompt
@@ -156,6 +160,3 @@ SYSTEM_MESSAGE = (
     "Keep replies short, warm, and conversational — like a friendly front-desk person, "
     "not a script."
 )
-
-# SMS follow-up
-SMS_AFTER_CALL_ENABLED = True
