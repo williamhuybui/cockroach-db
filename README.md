@@ -4,6 +4,17 @@ OpenLine AI is a 24/7 AI phone receptionist for service businesses that cannot a
 
 Built for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https://cockroachdb-ai.devpost.com/).
 
+## Try the live demo
+
+Experience OpenLine AI without installing anything:
+
+- **Call the AI receptionist:** [(832) 648-1907](tel:+18326481907)
+- **Open the application:** [https://18-224-114-80.sslip.io/](https://18-224-114-80.sslip.io/)
+- **Watch the operations dashboard:** [https://18-224-114-80.sslip.io/dashboard](https://18-224-114-80.sslip.io/dashboard)
+- **Check system health:** [https://18-224-114-80.sslip.io/health](https://18-224-114-80.sslip.io/health)
+
+For the best demonstration, open the dashboard and then call the number. You can watch the call status and transcript update as the conversation happens; after disconnect, refresh the completed records to see the structured summary and follow-up tasks.
+
 ## Why OpenLine AI
 
 For roofers and other field-service teams, an unanswered call can become a job awarded to the next available contractor. OpenLine AI helps businesses respond immediately without adding another person to every shift.

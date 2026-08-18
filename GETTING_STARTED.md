@@ -44,12 +44,13 @@ Create `.env` in the repo root. **Never commit this file** — it's already in `
 
 ```dotenv
 OPENAI_API_KEY="your-openai-api-key-here"
+GROQ_API_KEY="your-groq-api-key-here"
 
 DATABASE_URL="postgresql://<user>:<password>@<cluster-host>:26257/defaultdb?sslmode=verify-full"
 
 TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 TWILIO_AUTH_TOKEN="your-twilio-auth-token"
-TWILIO_FROM_NUMBER="+1XXXXXXXXXX"
+TWILIO_PHONE_NUMBER="+1XXXXXXXXXX"
 ```
 
 Where to get each value:
@@ -57,9 +58,10 @@ Where to get each value:
 | Variable | Where |
 |---|---|
 | `OPENAI_API_KEY` | platform.openai.com → API keys |
+| `GROQ_API_KEY` | console.groq.com → API Keys |
 | `DATABASE_URL` | CockroachDB Cloud console → cluster → **Connect** button → connection string (ask Ha for cluster access if you don't have it) |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | Twilio Console → **Account** → API keys & tokens |
-| `TWILIO_FROM_NUMBER` | Twilio Console → **Phone Numbers → My Inventory** — the project's number, currently `+18326481907` |
+| `TWILIO_PHONE_NUMBER` | Twilio Console → **Phone Numbers → My Inventory** — the project's number, currently `+18326481907` |
 
 If `DATABASE_URL` fails with `root certificate file ... does not exist` or `SSL error: certificate verify failed`, download the cluster's CA cert once per machine:
 ```bash
