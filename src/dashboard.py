@@ -1,9 +1,3 @@
-"""Dashboard API — reads calls, transcripts, and customers from CockroachDB.
-
-Transcript turns are written by the live call path in main.py. Notes and
-uploaded files have no tables yet, so they still live on disk
-(notes.json / uploads/).
-"""
 import asyncio
 import json
 import os
@@ -42,31 +36,14 @@ router = APIRouter()
 
 
 class NoCacheStaticFiles(StaticFiles):
-    """StaticFiles that forces revalidation on every request.
-
-    Plain StaticFiles only sends Last-Modified/ETag, which lets a browser's
-    heuristic cache serve a stale dashboard.js/css straight from disk with
-    *no* network request at all when a page is reloaded moments after an
-    edit — a real bug can look identical to "the old file is still cached".
-    `no-cache` still lets the browser send a conditional GET (so an
-    unchanged file gets a cheap 304), it just stops it from skipping the
-    request entirely.
-    """
 
     def file_response(self, *args, **kwargs):
         response = super().file_response(*args, **kwargs)
         response.headers["Cache-Control"] = "no-cache"
         return response
 
-# ---------- conversations (one per call_id in the transcripts table) ----------
-
 
 def _get_call_tags(call_ids):
-    """Real topic tags from post-call extraction (calls.tags — an LLM-produced
-    free-form list, see post_call_extraction.py), keyed by call_id. A call
-    with no calls-table row yet (extraction hasn't run or failed) or a null
-    tags column just isn't in the returned dict — callers should default to
-    an empty list."""
     call_ids = list(call_ids)
     if not call_ids:
         return {}
@@ -78,7 +55,6 @@ def _get_call_tags(call_ids):
 
 
 def _build_conversation(call_id, rows, tags=None):
-    """Shape one call's transcript rows the way the frontend expects."""
     messages = [
         {
             "id": str(r["id"]),
@@ -99,9 +75,6 @@ def _build_conversation(call_id, rows, tags=None):
     if preview is None:
         preview = messages[0]["text"] if messages else ""
 
-    # topics come from the caller (real LLM extraction, not derived here).
-    # Action items (to-dos) live in the tasks table now — see
-    # /api/action-items — not on this record at all.
     return {
         "id": call_id,
         "caller_number": rows[0]["caller_number"] if rows else "unknown",
@@ -116,7 +89,6 @@ def _build_conversation(call_id, rows, tags=None):
 
 
 def list_conversations():
-    """Every call in the transcripts table, newest first."""
     rows = execute_sql(
         """
         SELECT id, call_id, "timestamp", caller_number, speaker, text
@@ -153,9 +125,6 @@ def get_conversation(conversation_id):
     return _build_conversation(conversation_id, rows, tags)
 
 
-# ---------- notes (still on disk — no notes table yet) ----------
-
-
 def _load_notes():
     if not NOTES_FILE.exists():
         return {}
@@ -169,14 +138,6 @@ def _save_notes(notes):
     NOTES_FILE.write_text(json.dumps(notes, indent=2), encoding="utf-8")
 
 
-# ---------- action items (the tasks table) ----------
-#
-# These are the real, persisted follow-ups written by the post-call extraction
-# (routers/calls.py create_tasks_for_call), with id and status, so they can
-# actually be checked off from the dashboard.
-
-# LEFT JOIN calls on purpose: tasks.call_id has no foreign key, and deleting a
-# call leaves its tasks behind, so the call row may not exist.
 _ACTION_ITEM_SELECT = """
     SELECT t.id::STRING   AS id,
            t.call_id,
@@ -199,7 +160,6 @@ _ACTION_ITEM_SELECT = """
     LEFT JOIN calls ca ON ca.call_id = t.call_id
 """
 
-# Open items first, then most recent call first within each group.
 _ACTION_ITEM_ORDER = """
     ORDER BY (t.status = 'done'), COALESCE(ca."timestamp", t.created_at) DESC
 """
@@ -225,10 +185,6 @@ def _action_item_record(row):
         "problem": row["problem"],
         "urgency": row["urgency"],
         "availability": row["availability"],
-        # Both straight from the extraction LLM's own read of this item (see
-        # post_call_extraction.py's todo_items schema) — no keyword/regex
-        # classification after the fact. suggested_datetime only pre-fills
-        # the Schedule sheet; scheduled_at above is the human-confirmed one.
         "is_appointment": row["is_appointment"],
         "suggested_datetime": _iso(row["suggested_datetime"]),
     }
@@ -245,9 +201,6 @@ def list_action_items(call_id=None, limit=200):
 
 
 def _get_raw_action_item(task_id):
-    """Like get_action_item, but the unshaped DB row — real datetimes and
-    calendar_event_id included, for callers that need to write those back
-    (e.g. api_update_action_item, when upserting a calendar event)."""
     rows = execute_sql(f"{_ACTION_ITEM_SELECT} WHERE t.id = %s", (task_id,))
     return rows[0] if rows else None
 
@@ -257,21 +210,9 @@ def get_action_item(task_id):
     return _action_item_record(row) if row else None
 
 
-# ---------- request bodies ----------
-
-
 class ActionItemUpdate(BaseModel):
-    # Both optional and independent: the "mark done"/"reopen" button sends
-    # only status, the Schedule sheet sends only scheduled_at. Omitted
-    # fields are left as they were.
     status: Literal["open", "done"] | None = None
-    # "YYYY-MM-DDTHH:MM" from the Schedule sheet's native date/time inputs,
-    # interpreted as company-local time (config.COMPANY_TIMEZONE). Send null
-    # explicitly to clear a previously scheduled slot.
     scheduled_at: str | None = None
-    # Only used alongside scheduled_at, to size/annotate the calendar event —
-    # neither is persisted on the task itself (no columns for them; the
-    # calendar event is the only place they end up).
     duration_minutes: int | None = None
     note: str | None = None
 
@@ -294,9 +235,6 @@ class NewClientRequest(ClientRequest):
     phone: str
 
 
-# ---------- conversation endpoints ----------
-
-
 @router.get("/api/conversations")
 async def api_list_conversations():
     return [{k: v for k, v in c.items() if k != "messages"} for c in list_conversations()]
@@ -312,11 +250,6 @@ async def api_get_conversation(conversation_id: str):
 
 @router.delete("/api/conversations/{conversation_id}")
 async def api_delete_conversation(conversation_id: str):
-    """Delete a call entirely: every transcript turn, its follow-up tasks, its
-    calls-table summary row (if post-call extraction finished), and any local
-    notes. This predates the calls/tasks tables and used to only touch
-    transcripts, which left orphaned rows in both once they existed.
-    """
     rows = execute_sql(
         "DELETE FROM transcripts WHERE call_id = %s RETURNING id",
         (conversation_id,),
@@ -324,26 +257,17 @@ async def api_delete_conversation(conversation_id: str):
     if not rows:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    # tasks.call_id has no FK (see migrations/004_tasks.sql), so this needs to
-    # be explicit — it won't cascade.
     tasks_deleted = execute_sql(
         "DELETE FROM tasks WHERE call_id = %s RETURNING id",
         (conversation_id,),
     )
 
-    # calls.previous_call_id is a self-referencing FK with no ON DELETE
-    # clause (see migrations/002_calls.sql) — RESTRICT by default. If some
-    # other call points at this one as its previous_call_id (a follow-up
-    # chain), the DELETE below would fail with a ForeignKeyViolation. Clear
-    # that backlink first rather than cascading — deleting one call in a
-    # chain shouldn't take the other (unrelated, still-valid) call with it.
     execute_sql(
         "UPDATE calls SET previous_call_id = NULL WHERE previous_call_id = %s",
         (conversation_id,),
     )
     execute_sql("DELETE FROM calls WHERE call_id = %s", (conversation_id,))
 
-    # Drop its notes too, so they don't dangle against a deleted call.
     notes = _load_notes()
     if notes.pop(conversation_id, None) is not None:
         _save_notes(notes)
@@ -357,7 +281,6 @@ async def api_delete_conversation(conversation_id: str):
 
 @router.delete("/api/conversations/{conversation_id}/messages/{message_id}")
 async def api_delete_message(conversation_id: str, message_id: str):
-    """Delete a single transcript turn."""
     rows = execute_sql(
         "DELETE FROM transcripts WHERE call_id = %s AND id = %s RETURNING id",
         (conversation_id, message_id),
@@ -369,16 +292,7 @@ async def api_delete_message(conversation_id: str, message_id: str):
 
 @router.post("/api/conversations/{call_id}/reextract")
 async def api_reextract_conversation(call_id: str):
-    """Re-run post-call extraction (post_call_extraction.py) for a call that
-    already has transcript turns — wired to the dashboard's "re-run
-    extraction" (⟳) button. Works whether or not the call already has a
-    calls-table row (e.g. the live extraction never ran or failed).
 
-    Never wipes out existing tasks: a rerun refreshes the calls-table fields
-    (name/tags/urgency/summary/...), but a human may have already scheduled
-    or completed a to-do item from the action items panel, so tasks are only
-    (re)created here if the call currently has none at all.
-    """
     caller_rows = execute_sql(
         "SELECT DISTINCT caller_number FROM transcripts WHERE call_id = %s",
         (call_id,),
@@ -420,25 +334,14 @@ async def api_reextract_conversation(call_id: str):
     return get_conversation(call_id)
 
 
-# ---------- action item endpoints ----------
-
 
 @router.get("/api/action-items")
 async def api_list_action_items(call_id: str | None = None, limit: int = 200):
-    """Persisted follow-ups from the tasks table, open ones first."""
     return list_action_items(call_id=call_id, limit=max(1, min(limit, 500)))
 
 
 @router.patch("/api/action-items/{task_id}")
 async def api_update_action_item(task_id: str, body: ActionItemUpdate):
-    """Close an action item (or reopen it), and/or schedule an appointment.
-
-    `status`/`completed_at` are written together so they can never disagree
-    — reopening nulls the timestamp. Scheduling upserts a Google Calendar
-    event (best-effort, see calendar_service.py) and stores its id alongside
-    scheduled_at, so re-scheduling updates that same event instead of
-    creating a duplicate.
-    """
     try:
         uuid.UUID(task_id)
     except ValueError:
@@ -501,20 +404,12 @@ async def api_update_action_item(task_id: str, body: ActionItemUpdate):
     if not rows:
         raise HTTPException(status_code=404, detail="Action item not found")
 
-    # Return the same shape GET does, so the frontend can splice it into state.
     return get_action_item(task_id)
 
-
-# ---------- live calls (SSE) ----------
 
 
 @router.get("/api/live/stream")
 async def api_live_stream():
-    """Server-sent events for every call currently in progress.
-
-    A plain GET, kept open — EventSource on the frontend, or `curl -N`. See
-    live_calls.subscribe() for the event sequence and heartbeat behavior.
-    """
     return StreamingResponse(
         live_calls.subscribe(),
         media_type="text/event-stream",
@@ -531,15 +426,10 @@ async def api_live_stream():
 
 @router.get("/api/live/calls")
 async def api_live_calls():
-    """Same data as the stream's snapshot event, as a plain GET — the
-    fallback path for a browser without EventSource support."""
     return {"calls": live_calls.snapshot(), "server_time": datetime.now().isoformat()}
 
 
 async def _run_fake_call():
-    """Scripted fake call for /api/live/simulate. Touches no DB, no Twilio, no
-    OpenAI — purely exercises live_calls so the live view is testable without
-    dialing the real number."""
     stream_sid = f"SIM{uuid.uuid4().hex[:12]}"
     caller_number = "+14175559999"
 
@@ -588,9 +478,6 @@ async def api_live_simulate():
     return {"started": True}
 
 
-# ---------- notes endpoints ----------
-
-
 @router.get("/api/conversations/{conversation_id}/notes")
 async def api_list_notes(conversation_id: str):
     if not get_conversation(conversation_id):
@@ -626,8 +513,6 @@ async def api_delete_note(conversation_id: str, note_id: str):
     return conversation_notes
 
 
-# ---------- clients (the customers table) ----------
-
 
 def _client_record(row):
     return {
@@ -658,9 +543,6 @@ async def api_caller_names():
 @router.post("/api/callers/{caller_number}/name")
 async def api_set_caller_name(caller_number: str, body: CallerNameRequest):
     name = body.name.strip()
-    # A human explicitly setting the name here — lock it so a later
-    # extraction rerun can't overwrite it (see routers/calls.py's
-    # upsert_customer).
     execute_sql(
         """
         INSERT INTO customers (phone_number, full_name, name_is_manual)
@@ -695,7 +577,7 @@ async def api_list_clients():
         record["last_call"] = stat["last_call"].isoformat() if stat and stat["last_call"] else None
         result.append(record)
 
-    # Callers who phoned in but aren't saved as customers yet.
+
     for phone, stat in stats_by_phone.items():
         result.append({
             "phone": phone,
@@ -730,11 +612,6 @@ async def api_get_client(phone: str):
 @router.post("/api/clients/{phone}")
 async def api_update_client(phone: str, body: ClientRequest):
     name = body.name.strip()
-    # A human explicitly saving a non-empty name here — lock it so a later
-    # extraction rerun can't overwrite it (see routers/calls.py's
-    # upsert_customer). A blank name isn't a "correction", so it doesn't
-    # lock — that would otherwise permanently block extraction from ever
-    # filling one in.
     name_is_manual = bool(name)
     rows = execute_sql(
         """
