@@ -15,7 +15,7 @@ The application runs on Amazon Lightsail at [18.224.114.80](https://us-east-2.co
 
 ## Deployment details
 
-This guide explains how to deploy the Front Desk application to Amazon Lightsail and configure GitHub Actions to deploy future changes automatically.
+This guide explains how to deploy the Openline AI application to Amazon Lightsail and configure GitHub Actions to deploy future changes automatically.
 
 The deployment uses:
 
@@ -217,7 +217,7 @@ Add:
 
 ```ini
 [Unit]
-Description=Front Desk FastAPI application
+Description=Openline AI FastAPI application
 After=network-online.target
 Wants=network-online.target
 

@@ -1,4 +1,4 @@
-# OpenLine AI — The Front Desk That Never Sleeps
+# OpenLine AI — Always open. Always answering.
 
 OpenLine AI is a 24/7 AI phone receptionist for service businesses that cannot always stop working to answer the phone. It holds a natural conversation, remembers returning callers, captures every detail, and turns each call into structured follow-up work.
 

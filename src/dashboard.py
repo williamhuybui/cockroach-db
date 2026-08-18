@@ -330,6 +330,17 @@ async def api_delete_conversation(conversation_id: str):
         "DELETE FROM tasks WHERE call_id = %s RETURNING id",
         (conversation_id,),
     )
+
+    # calls.previous_call_id is a self-referencing FK with no ON DELETE
+    # clause (see migrations/002_calls.sql) — RESTRICT by default. If some
+    # other call points at this one as its previous_call_id (a follow-up
+    # chain), the DELETE below would fail with a ForeignKeyViolation. Clear
+    # that backlink first rather than cascading — deleting one call in a
+    # chain shouldn't take the other (unrelated, still-valid) call with it.
+    execute_sql(
+        "UPDATE calls SET previous_call_id = NULL WHERE previous_call_id = %s",
+        (conversation_id,),
+    )
     execute_sql("DELETE FROM calls WHERE call_id = %s", (conversation_id,))
 
     # Drop its notes too, so they don't dangle against a deleted call.

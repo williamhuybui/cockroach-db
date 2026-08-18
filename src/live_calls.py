@@ -117,6 +117,7 @@ def start_call(stream_sid, caller_number):
         "call_id": None,
         "caller_number": caller_number,
         "caller_name": None,
+        "caller_address": None,
         "returning": False,
         "started_at": None,
         "speaker": "idle",
@@ -164,10 +165,15 @@ def set_returning_caller(stream_sid, customer):
         return
     call["returning"] = True
     call["caller_name"] = customer.get("full_name") or None
+    # Same on-file address the agent itself is told to confirm rather than
+    # re-ask for (see main.py's send_returning_caller_context) — surfaced
+    # here too so a dashboard operator watching the live card sees it.
+    call["caller_address"] = customer.get("address") or None
     _broadcast("call_identified", {
         "stream_sid": stream_sid,
         "call_id": call["call_id"],
         "caller_name": call["caller_name"],
+        "caller_address": call["caller_address"],
         "returning": True,
     })
 

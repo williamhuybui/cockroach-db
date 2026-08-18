@@ -18,8 +18,6 @@ This router does not generate call IDs. It reuses the call ID already assigned b
 """
 
 import re
-from config import COMPANY_NAME, SMS_AFTER_CALL_ENABLED
-from sms_service import send_call_summary_sms
 
 from fastapi import (
     APIRouter,
@@ -85,20 +83,6 @@ def validate_call_id(
         )
 
     return cleaned_call_id
-
-def build_call_summary_sms_text(call: dict) -> str:
-    """Build the short follow-up text sent after a call is saved."""
-    lines = [f"Thanks for calling {COMPANY_NAME}!"]
-
-    if call.get("problem"):
-        lines.append(f"We've noted: {call['problem']}.")
-
-    if call.get("urgency") == "Emergency":
-        lines.append("We've flagged this as urgent — someone will call you back shortly.")
-    else:
-        lines.append("A team member will follow up soon.")
-
-    return " ".join(lines)
 
 def validate_route_call_id(
     call_id,
@@ -555,12 +539,6 @@ async def create_call(
                 "previous_call_id does not exist."
             ),
         ) from error
-
-    if SMS_AFTER_CALL_ENABLED:
-        await send_call_summary_sms(
-            to_number=row["caller_number"],
-            message=build_call_summary_sms_text(row),
-        )
 
     return dict(row)
 
