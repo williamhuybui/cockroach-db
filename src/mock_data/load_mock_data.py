@@ -1,25 +1,3 @@
-"""
-Load the mock calls.csv / transcripts.csv straight into CockroachDB.
-
-This used to POST to /transcripts and /calls, but neither route is mounted
-on the running app anymore (only register_dashboard(app)'s /api/* routes
-are — see src/main.py). Rather than stand up dead HTTP endpoints just for a
-mock loader, this writes through the same functions the real call path
-uses: database.save_transcript_turn (src/main.py's save_conversation_turn
-calls the same one) and routers/calls.py's insert_call (which validates the
-row, upserts the customer, and creates follow-up tasks exactly like a real
-completed call would).
-
-The mock call IDs (C051-C065) were deliberately chosen to continue after
-whatever real calls already exist in your database — check before re-running
-this against a database that already has calls in that range, since
-insert_call has no upsert path and will fail on a duplicate call_id.
-
-Usage (from the project root, venv activated — no server needs to be
-running, this talks to the database directly):
-    python src/mock_data/load_mock_data.py
-"""
-
 import asyncio
 import csv
 import os
@@ -36,7 +14,6 @@ from routers.calls import insert_call
 
 
 def blank_to_none(value):
-    """CSV empty strings should become None for optional fields."""
     if value is None:
         return None
     value = value.strip()
@@ -113,11 +90,6 @@ async def load_calls():
 
 
 def bump_call_id_sequence():
-    """
-    Advance call_id_sequence past the highest call_id just loaded, so the
-    next real call (generate_call_id in database.py) can't collide with
-    these mock rows.
-    """
     highest = execute_sql("SELECT max(call_id) AS m FROM calls")[0]["m"]
     if not highest:
         return
