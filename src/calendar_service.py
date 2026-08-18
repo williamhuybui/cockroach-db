@@ -1,30 +1,3 @@
-"""Google Calendar integration — one shared company calendar.
-
-Appointments booked from the dashboard's action items (see the "Schedule"
-button in dashboard.py / dashboard.js) get an event on a single Google
-Calendar, authenticated with a service account — no per-user OAuth consent
-screen needed, since every appointment belongs to the same company, not to
-an individual caller's own calendar.
-
-Setup (once):
-  1. Google Cloud Console -> create/select a project -> enable the
-     "Google Calendar API".
-  2. IAM & Admin -> Service Accounts -> create one -> Keys -> Add key ->
-     Create new key (JSON). Save the file as google-service-account.json in
-     the repo root (already gitignored) and point GOOGLE_SERVICE_ACCOUNT_FILE
-     at it.
-  3. In Google Calendar, open the calendar you want appointments on ->
-     Settings and sharing -> Share with specific people -> paste the
-     service account's `client_email` (from the JSON key) -> give it
-     "Make changes to events" -> copy that calendar's Calendar ID (Settings
-     and sharing -> Integrate calendar) into GOOGLE_CALENDAR_ID.
-
-This is best-effort enrichment, the same pattern as post_call_extraction.py:
-if it's not configured, or a request to Google fails, the appointment is
-still saved to the tasks table — it just won't show up on the calendar.
-Nothing here should ever raise out to a caller.
-"""
-
 import logging
 import os
 from datetime import timedelta
@@ -62,12 +35,6 @@ _warned_not_configured = False
 
 
 def _get_service():
-    """Build (and cache) the Calendar API client.
-
-    Returns None if calendar integration isn't configured (missing env
-    vars) or the credentials file can't be loaded — callers should treat
-    that as "skip the calendar write", not an error.
-    """
     global _service, _warned_not_configured
 
     if _service is not None:
@@ -108,17 +75,7 @@ def upsert_appointment_event(
     duration_minutes=None,
     note=None,
 ):
-    """Create or update the calendar event for one appointment task.
 
-    `scheduled_at` must be a timezone-aware datetime. `duration_minutes`
-    defaults to DEFAULT_EVENT_DURATION (60) if omitted. `note` is the
-    optional free-text field from the Schedule sheet — appended to the
-    event description, not persisted anywhere else. Returns the event id to
-    store back on the task (tasks.calendar_event_id), or `existing_event_id`
-    unchanged if calendar integration isn't configured or the request
-    fails — this never raises, so it can't block saving the appointment
-    itself.
-    """
     service = _get_service()
     if service is None:
         return existing_event_id
@@ -165,11 +122,6 @@ def delete_appointment_event(event_id):
 
 
 if __name__ == "__main__":
-    # Quick manual test — no dashboard or DB needed, just a working
-    # GOOGLE_CALENDAR_ID + GOOGLE_SERVICE_ACCOUNT_FILE in your .env, with
-    # that calendar shared with the service account (see the module
-    # docstring above):
-    #   cd src && python calendar_service.py
     from datetime import datetime, timedelta as _timedelta
 
     service = _get_service()
