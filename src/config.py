@@ -1,13 +1,7 @@
-# Server
 PORT = 5050
 
-# Scheduling
-# The company's local timezone, used to interpret the date/time picked in
-# the dashboard's Schedule sheet before storing it (as UTC) and sending it
-# to Google Calendar. See src/calendar_service.py.
 COMPANY_TIMEZONE = "America/Chicago"
 
-# Model
 TEMPERATURE = 0.7
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
@@ -25,27 +19,13 @@ VAD_THRESHOLD = 0.7
 VAD_EAGERNESS = "auto"  
 VAD_NOISE_REDUCTION = "near_field"
 
-# Logging
-# True: log everything (connections, raw events, timing, etc.).
-# False: log only "phone_number: time: conversation" lines.
 VERBOSE = True
-
-# Greeting
-# "twilio": hardcoded <Say> greeting, played before the AI connects.
-# "openai": AI greets the caller itself once the media stream connects.
-# See greeting.py for the actual greeting text used by each mode.
 GREETING_MODE = "twilio"
 
-# Embedding configuration
-# Model used later to generate transcript embeddings for semantic search.
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
-# This must match the VECTOR(1536) column in CockroachDB.
 OPENAI_EMBEDDING_DIMENSIONS = 1536
-# Maximum time to wait for an OpenAI embedding request.
 OPENAI_REQUEST_TIMEOUT_SECONDS = 30
 
-# Database connection pool
-# Allow up to 3 concurrent connections to the database
 DATABASE_POOL_MIN_SIZE = 1
 DATABASE_POOL_MAX_SIZE = 3
 
